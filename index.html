@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <!--
   ════════════════════════════════════════════════════════════════════════
-  VGP Genome Pairwise Heatmap Viewer (2-page: Similarity + Coverage)
+  VGP Genome Pairwise Heatmap Viewer
+  Triangle / diamond layout (matrix rotated 45°, dendrogram on top).
+  2 pages: Similarity (symmetric) + Coverage (directional, split diamonds).
 
   IMPORTANT: This file uses fetch() to load `heatmap_data.json`, so it MUST be
   served over HTTP, not opened via the file:// protocol. From this directory:
@@ -19,226 +21,353 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VGP Pairwise Heatmap Viewer</title>
 <style>
+:root {
+  --bg:          #eef2f6;
+  --header:      #0f172a;
+  --panel-line:  #1e293b;
+  --accent:      #6366f1;
+  --accent-soft: #818cf8;
+  --card:        #ffffff;
+  --border:      #e2e8f0;
+  --ink:         #0f172a;
+  --ink-soft:    #334155;
+  --muted:       #64748b;
+  --muted-2:     #94a3b8;
+}
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #f5f5f5;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
   overflow: hidden;
   height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
+
+/* ───────────────────────── Header ───────────────────────── */
 #header {
-  background: #1a1a2e;
-  color: white;
-  padding: 8px 20px;
+  height: 60px;
+  background: var(--header);
+  border-bottom: 1px solid var(--panel-line);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  height: 50px;
-  z-index: 100;
+  padding: 0 18px;
+  gap: 16px;
 }
-#header h1 { font-size: 15px; font-weight: 500; }
-#header .controls { display: flex; gap: 12px; align-items: center; }
-#header button {
-  background: #4361ee;
-  color: white;
+.brand {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+.brand-mark {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #6366f1 0%, #22d3ee 100%);
+  box-shadow: 0 2px 8px rgba(99,102,241,0.45);
+}
+.brand-text { min-width: 0; }
+.brand-text h1 {
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.brand-text p {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 1px;
+  white-space: nowrap;
+}
+
+/* Segmented page switcher */
+.segmented {
+  flex-shrink: 0;
+  display: flex;
+  gap: 3px;
+  background: #1e293b;
+  padding: 3px;
+  border-radius: 10px;
+}
+.seg {
   border: none;
-  padding: 6px 14px;
-  border-radius: 4px;
-  cursor: pointer;
+  background: transparent;
+  font-family: inherit;
   font-size: 13px;
-}
-#header button:hover { background: #3a56d4; }
-#header button:disabled { background: #666; cursor: not-allowed; }
-
-/* ── Tab switcher ── */
-#tabs {
-  background: #16213e;
-  display: flex;
-  height: 44px;
-  z-index: 95;
-  border-bottom: 2px solid #0f1626;
-}
-.tab {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 4px 26px;
+  font-weight: 500;
+  color: var(--muted-2);
+  padding: 7px 20px;
+  border-radius: 7px;
   cursor: pointer;
-  color: #9aa6c4;
-  font-size: 13px;
-  border-right: 1px solid #0f1626;
-  transition: background 0.12s, color 0.12s;
-  user-select: none;
+  transition: background 0.14s, color 0.14s;
+  white-space: nowrap;
 }
-.tab:hover { background: #1d2c4d; color: #cfd8ee; }
-.tab .tab-zh { font-size: 13px; font-weight: 600; }
-.tab .tab-en { font-size: 10.5px; opacity: 0.8; }
-.tab.active {
-  background: #f5f5f5;
-  color: #1a1a2e;
-  border-bottom: 3px solid #4361ee;
-  margin-bottom: -2px;
+.seg:hover:not(.active) { background: #28344b; color: #e2e8f0; }
+.seg.active {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 1px 5px rgba(99,102,241,0.5);
 }
-.tab.active .tab-zh { color: #1a1a2e; }
-.tab.active .tab-en { color: #4361ee; opacity: 1; }
 
+.controls {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+#zoom-label {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 44px;
+  text-align: right;
+}
+#reset-btn {
+  background: #1e293b;
+  color: #cbd5e1;
+  border: 1px solid #334155;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 7px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s, border-color 0.14s;
+}
+#reset-btn:hover { background: #28344b; color: #fff; border-color: #475569; }
+#reset-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ───────────────────────── Canvas ───────────────────────── */
 #canvas-wrap {
   width: 100%;
-  height: calc(100vh - 94px);
+  height: calc(100vh - 60px);
   position: relative;
   overflow: hidden;
 }
 canvas { display: block; cursor: crosshair; }
+
+/* ───────────────────────── Tooltip ───────────────────────── */
 #tooltip {
   display: none;
   position: fixed;
-  background: rgba(0,0,0,0.9);
-  color: white;
-  padding: 10px 14px;
-  border-radius: 6px;
-  font-size: 13px;
+  background: rgba(15,23,42,0.97);
+  color: #e2e8f0;
+  padding: 11px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
   pointer-events: none;
   z-index: 1000;
-  max-width: 460px;
-  line-height: 1.6;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  max-width: 440px;
+  line-height: 1.65;
+  border: 1px solid rgba(148,163,184,0.18);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.4);
 }
-#tooltip .species-name { color: #7ecfff; font-weight: 600; }
-#tooltip .common-name { color: #9aa6c4; font-style: italic; font-size: 11.5px; }
+#tooltip .species-name { color: var(--accent-soft); font-weight: 600; }
+#tooltip .common-name { color: var(--muted-2); font-style: italic; font-size: 11.5px; }
 #tooltip .clade-tag {
   display: inline-block;
-  padding: 1px 6px;
-  border-radius: 3px;
+  padding: 1px 7px;
+  border-radius: 4px;
   font-size: 11px;
   margin-left: 4px;
 }
-#tooltip .val { color: #ffd700; font-weight: 600; }
-#tooltip .label { color: #aaa; }
-#tooltip .dir-note { color: #87d7a0; font-size: 11px; margin-top: 3px; }
+#tooltip .val { color: #fbbf24; font-weight: 600; }
+#tooltip .label { color: var(--muted-2); }
+#tooltip .dir-note { color: #6ee7b7; font-size: 11px; margin-top: 3px; }
+#tooltip b { color: #f1f5f9; font-weight: 600; }
+#tooltip .tt-divider { border-top: 1px solid rgba(148,163,184,0.2); margin-top: 6px; padding-top: 6px; }
+
+/* ───────────────────────── Legend ───────────────────────── */
 #legend {
   position: absolute;
-  bottom: 14px;
-  left: 14px;
+  bottom: 16px;
+  left: 16px;
   background: rgba(255,255,255,0.95);
-  border-radius: 8px;
-  padding: 10px 14px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 11px 14px;
+  box-shadow: 0 6px 20px rgba(15,23,42,0.1);
+  z-index: 60;
+  max-width: 86%;
+}
+.legend-title {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+  margin-bottom: 8px;
+}
+.legend-items {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px 12px;
+  gap: 6px 14px;
   font-size: 11.5px;
-  z-index: 60;
-  max-width: 85%;
+  color: var(--ink-soft);
 }
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-.legend-swatch {
-  width: 12px; height: 12px;
-  border-radius: 2px;
-  flex-shrink: 0;
-}
+.legend-item { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.legend-swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+.legend-item .legend-count { color: var(--muted-2); font-variant-numeric: tabular-nums; }
+
+/* ───────────────────────── Colorbar ───────────────────────── */
 #colorbar {
   position: absolute;
-  right: 14px;
+  right: 16px;
   top: 50%;
   transform: translateY(-50%);
   z-index: 60;
+  background: rgba(255,255,255,0.95);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 12px 9px;
+  box-shadow: 0 6px 20px rgba(15,23,42,0.1);
 }
-#colorbar canvas { border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-.cb-label {
-  font-size: 10px;
-  color: #333;
-  text-align: center;
-  margin-top: 4px;
-  max-width: 80px;
-}
+.cb-row { display: flex; align-items: flex-start; gap: 5px; }
 .cb-ticks {
-  position: absolute;
-  right: 28px;
-  top: 0;
+  position: relative;
+  width: 38px;
   height: 300px;
   font-size: 10px;
-  color: #555;
+  color: var(--muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
+#cb-canvas { border-radius: 3px; display: block; box-shadow: 0 1px 4px rgba(15,23,42,0.18); }
+.cb-label {
+  font-size: 10px;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 7px;
+  max-width: 76px;
+}
+
+/* ───────────────────────── Help hint ───────────────────────── */
+#help-hint {
+  position: absolute;
+  top: 14px; left: 16px;
+  background: rgba(255,255,255,0.92);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  padding: 8px 13px;
+  border-radius: 10px;
+  font-size: 11.5px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 14px rgba(15,23,42,0.08);
+  z-index: 60;
+  display: flex;
+  gap: 9px;
+  align-items: center;
+}
+#help-hint b { color: var(--ink-soft); font-weight: 600; }
+#help-hint .hh-sep { color: #cbd5e1; }
+#help-hint kbd {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 10.5px;
+  font-family: inherit;
+  color: var(--ink-soft);
+}
+
+/* ───────────────────────── Selection info ───────────────────────── */
+#selection-info {
+  position: absolute;
+  top: 14px; right: 16px;
+  background: var(--card);
+  padding: 7px 8px 7px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 14px rgba(15,23,42,0.1);
+  z-index: 60;
+  display: none;
+  align-items: center;
+  gap: 10px;
+}
+#selection-info button {
+  background: #ef4444;
+  color: white;
+  border: none;
+  font-family: inherit;
+  padding: 4px 11px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.14s;
+}
+#selection-info button:hover { background: #dc2626; }
+
+/* ───────────────────────── Loading ───────────────────────── */
 #loading {
   position: fixed; inset: 0;
-  background: rgba(26,26,46,0.95);
+  background: var(--header);
   display: flex; align-items: center; justify-content: center;
-  z-index: 9999; color: white; font-size: 18px;
-  flex-direction: column; gap: 16px;
+  z-index: 9999; color: #e2e8f0;
+  flex-direction: column; gap: 18px;
 }
 #loading .spinner {
-  width: 40px; height: 40px;
-  border: 4px solid #333; border-top-color: #4361ee;
+  width: 38px; height: 38px;
+  border: 3px solid #1e293b; border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
+#load-text { font-size: 14px; color: var(--muted-2); }
 @keyframes spin { to { transform: rotate(360deg); } }
 #error-box {
-  background: #2a1a1a; color: #ffb4b4;
-  padding: 14px 20px; border-radius: 8px;
+  background: #1e293b; color: #fca5a5;
+  padding: 16px 22px; border-radius: 10px;
   font-size: 13px; max-width: 520px; text-align: center;
-  line-height: 1.6;
+  line-height: 1.65; border: 1px solid #334155;
 }
-#selection-info {
-  position: absolute; top: 10px; right: 60px;
-  background: rgba(255,255,255,0.95);
-  padding: 8px 14px; border-radius: 6px;
-  font-size: 13px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  display: none; z-index: 60;
-}
-#selection-info button {
-  background: #e74c3c; color: white; border: none;
-  padding: 4px 10px; border-radius: 3px; cursor: pointer;
-  margin-left: 8px; font-size: 12px;
-}
-#help-hint {
-  position: absolute; top: 10px; left: 14px;
-  background: rgba(255,255,255,0.9); padding: 6px 12px;
-  border-radius: 6px; font-size: 11.5px; color: #555;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1); z-index: 60;
-}
-#help-hint kbd {
-  background: #eee; border: 1px solid #ccc; border-radius: 3px;
-  padding: 1px 4px; font-size: 11px;
-}
+#error-box code { background: #0f172a; padding: 2px 6px; border-radius: 4px; color: #e2e8f0; }
 </style>
 </head>
 <body>
 <div id="loading">
   <div class="spinner"></div>
-  <div id="load-text">Loading heatmap data... / 正在加载数据...</div>
+  <div id="load-text">Loading heatmap data…</div>
 </div>
 
-<div id="header">
-  <h1>VGP 基因组两两比对热图 &nbsp;/&nbsp; VGP Pairwise Genome Heatmap</h1>
+<header id="header">
+  <div class="brand">
+    <span class="brand-mark"></span>
+    <div class="brand-text">
+      <h1>VGP Pairwise Genome Heatmap</h1>
+      <p>581 vertebrate genomes &middot; all-vs-all alignment</p>
+    </div>
+  </div>
+  <div class="segmented">
+    <button class="seg active" id="tab-0" data-page="0" onclick="switchPage(0)">Similarity</button>
+    <button class="seg" id="tab-1" data-page="1" onclick="switchPage(1)">Coverage</button>
+  </div>
   <div class="controls">
-    <span id="zoom-label" style="font-size:12px;color:#aaa">Zoom: 1.0x</span>
-    <button onclick="resetView()">Reset View / 重置</button>
+    <span id="zoom-label">1.0&times;</span>
+    <button id="reset-btn" onclick="resetView()">Reset view</button>
   </div>
-</div>
-
-<!-- ── 2-page tab switcher ── -->
-<div id="tabs">
-  <div class="tab active" id="tab-0" data-page="0" onclick="switchPage(0)">
-    <span class="tab-zh">相似性</span>
-    <span class="tab-en">Similarity (Weighted Jaccard)</span>
-  </div>
-  <div class="tab" id="tab-1" data-page="1" onclick="switchPage(1)">
-    <span class="tab-zh">覆盖度</span>
-    <span class="tab-en">Coverage</span>
-  </div>
-</div>
+</header>
 
 <div id="canvas-wrap">
   <canvas id="main-canvas"></canvas>
   <div id="help-hint">
-    滚轮缩放 Scroll to zoom &middot; 拖拽平移 Drag to pan &middot; <kbd>Shift</kbd>+Drag select
+    <span>Scroll to <b>zoom</b></span>
+    <span class="hh-sep">&middot;</span>
+    <span>Drag to <b>pan</b></span>
+    <span class="hh-sep">&middot;</span>
+    <span><kbd>Shift</kbd> + drag to <b>select</b></span>
   </div>
   <div id="selection-info">
     <span id="sel-text"></span>
@@ -250,9 +379,11 @@ canvas { display: block; cursor: crosshair; }
 <div id="legend"></div>
 
 <div id="colorbar">
-  <div class="cb-ticks" id="cb-ticks"></div>
-  <canvas id="cb-canvas" width="24" height="300"></canvas>
-  <div class="cb-label" id="cb-label">log₁₀</div>
+  <div class="cb-row">
+    <div class="cb-ticks" id="cb-ticks"></div>
+    <canvas id="cb-canvas" width="24" height="300"></canvas>
+  </div>
+  <div class="cb-label" id="cb-label">log&#8321;&#8320;</div>
 </div>
 
 <script>
@@ -263,14 +394,24 @@ let DATA = null;            // the full loaded JSON
 let currentPageIdx = 0;     // 0 = similarity, 1 = coverage
 let PAGE = null;            // shorthand for DATA.pages[currentPageIdx]
 
-// Layout: tree takes TREE_FRAC of total width, heatmap takes the rest
-const TREE_FRAC = 0.10;
+// ── Layout (triangle / diamond) ──
+// The pairwise matrix is rotated 45°: the diagonal becomes the flat top
+// edge, the dendrogram sits above it, and the lower triangle hangs below
+// as a downward-pointing triangle of diamond-shaped cells.
+const TREE_FRAC = 0.14;        // dendrogram height as a fraction of triangle width
+const VECTOR_THRESHOLD = 10;   // cell px size at/above which Coverage draws split diamonds
+const LABEL_THRESHOLD  = 13;   // cell px size at/above which species labels are drawn
 
 // View state — SHARED across both pages (zoom/pan persist on tab switch)
 let unitSize = 1;           // pixels per matrix cell at zoom=1
 let offsetX = 0, offsetY = 0;
 let zoom = 1;
 const MIN_ZOOM = 0.3, MAX_ZOOM = 50;
+
+// Wheel-zoom sensitivity. Lower = gentler. factor = exp(-deltaY * SENS),
+// with deltaY clamped so high-resolution trackpads can't make the view jump.
+const ZOOM_SENSITIVITY = 0.0008;
+const ZOOM_DELTA_CLAMP = 100;
 
 // Selection (shared)
 let selectedRegion = null;
@@ -336,47 +477,48 @@ function valToRgb(rawVal) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// Coordinate system
+// Coordinate system  (triangle / diamond layout)
 // ═══════════════════════════════════════════════════════════
-// The combined figure is laid out as:
-//   [tree region: width = treeW] [heatmap region: width = n * scale]
-// Vertically both span n * scale pixels.  "scale" = unitSize * zoom.
+// Cell (i,j) with j >= i is a diamond centered at:
+//     cx = triLeftX + (i + j) * half
+//     cy = triTopY  + (j - i) * half
+// where half = scale/2.  Diagonal cells (i==j) sit on the flat top edge
+// (triTopY) and render as downward half-diamonds after the triangle clip.
+// The whole figure is  offset + scale * const , so zoom-toward-cursor
+// stays a plain uniform scale about (offsetX, offsetY).
 
-function getScale() { return unitSize * zoom; }
+function getScale()  { return unitSize * zoom; }
+function getHalf()   { return getScale() / 2; }
+function getTreeH()  { return DATA.n * getScale() * TREE_FRAC; }
+function getTriLeftX() { return offsetX + getHalf(); }
+function getTriTopY()  { return offsetY + getTreeH(); }
 
-function getTreeWidth() {
-  const n = DATA.n;
-  const scale = getScale();
-  const heatSize = n * scale;
-  return heatSize * TREE_FRAC / (1 - TREE_FRAC);
+// Screen-space center of cell (i,j).
+function cellCenter(i, j) {
+  const h = getHalf();
+  return [getTriLeftX() + (i + j) * h, getTriTopY() + (j - i) * h];
 }
 
-function heatmapToCanvas(col, row) {
-  const scale = getScale();
-  const treeW = getTreeWidth();
-  return [offsetX + treeW + col * scale, offsetY + row * scale];
-}
-
-function canvasToHeatmap(cx, cy) {
-  const scale = getScale();
-  const treeW = getTreeWidth();
-  return [(cx - offsetX - treeW) / scale, (cy - offsetY) / scale];
-}
-
+// Map a canvas point to the nearest cell {row,col} with row <= col,
+// or null if the point is outside the heatmap triangle.
 function canvasToCell(cx, cy) {
-  const [fcol, frow] = canvasToHeatmap(cx, cy);
-  const col = Math.floor(fcol);
-  const row = Math.floor(frow);
-  if (row < 0 || row >= DATA.n || col < 0 || col >= DATA.n) return null;
-  return { row, col };
+  const h = getHalf();
+  if (h <= 0) return null;
+  const u = (cx - getTriLeftX()) / h;   // = i + j
+  const v = (cy - getTriTopY()) / h;    // = j - i
+  const i = Math.round((u - v) / 2);
+  const j = Math.round((u + v) / 2);
+  if (i < 0 || j < 0 || i >= DATA.n || j >= DATA.n || i > j) return null;
+  return { row: i, col: j };
 }
 
 // ═══════════════════════════════════════════════════════════
 // Per-page overview pre-render (1px per cell)
 // ═══════════════════════════════════════════════════════════
-// Each cell blends the upper-left triangle (mat[col*n+row]) and the
-// lower-right triangle (mat[row*n+col]).  For the symmetric similarity
-// matrix the two are equal; for the asymmetric coverage matrix they differ.
+// Each pixel blends the two triangles mat[col*n+row] and mat[row*n+col].
+// For the symmetric similarity matrix the blend is exact; for the
+// asymmetric coverage matrix it is the mean of the two directions
+// (only shown while zoomed out — split diamonds take over when zoomed in).
 function prerenderOverview(pageIdx) {
   if (overviewImages[pageIdx]) return overviewImages[pageIdx];
   const savedPage = PAGE;
@@ -397,8 +539,8 @@ function prerenderOverview(pageIdx) {
       if (row === col) {
         rgb = valToRgb(mat[row * n + col]);
       } else {
-        const cu = valToRgb(mat[col * n + row]);   // upper-left triangle
-        const cl = valToRgb(mat[row * n + col]);   // lower-right triangle
+        const cu = valToRgb(mat[col * n + row]);
+        const cl = valToRgb(mat[row * n + col]);
         rgb = [
           (cu[0] + cl[0]) >> 1,
           (cu[1] + cl[1]) >> 1,
@@ -426,212 +568,199 @@ function draw() {
 
   const n = DATA.n;
   const scale = getScale();
-  const treeW = getTreeWidth();
+  const h = scale / 2;
+  const triLeftX = getTriLeftX();
+  const triTopY  = getTriTopY();
+  const treeH    = getTreeH();
 
-  const hx0 = offsetX + treeW;
-  const hy0 = offsetY;
-  const heatSize = n * scale;
+  // Triangle corners
+  const TLx = triLeftX - h,            TLy = triTopY;
+  const TRx = triLeftX + (2 * n - 1) * h, TRy = triTopY;
+  const APx = triLeftX + (n - 1) * h,  APy = triTopY + n * h;
 
-  // ── Determine visible cell range ──
-  const visColStart = Math.max(0, Math.floor((0 - hx0) / scale));
-  const visColEnd = Math.min(n - 1, Math.floor((W - hx0) / scale));
-  const visRowStart = Math.max(0, Math.floor((0 - hy0) / scale));
-  const visRowEnd = Math.min(n - 1, Math.floor((H - hy0) / scale));
+  // ── Heatmap (clipped to the triangle) ──
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(TLx, TLy);
+  ctx.lineTo(TRx, TRy);
+  ctx.lineTo(APx, APy);
+  ctx.closePath();
+  ctx.clip();
 
-  // ── Draw heatmap ──
-  const useVectorCells = scale >= 4;
+  const isCoverage = PAGE.key === 'coverage';
+  const useVector = isCoverage && scale >= VECTOR_THRESHOLD;
 
-  if (!useVectorCells) {
-    // Pixel overview mode
+  if (!useVector) {
+    // Rotate the pre-rendered overview 45° into the diamond grid.
     const ov = overviewImages[currentPageIdx];
     if (ov) {
-      ctx.imageSmoothingEnabled = scale < 2;
-      ctx.drawImage(ov, 0, 0, n, n, hx0, hy0, heatSize, heatSize);
-      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingEnabled = scale < 2.5;
+      ctx.setTransform(h, h, h, -h, triLeftX - h, triTopY);
+      ctx.drawImage(ov, 0, 0);
+      // setTransform reset happens via restore() below
     }
   } else {
-    // Vector triangle rendering for visible cells — keeps directional
-    // (asymmetric) coverage values visible per-triangle when zoomed in.
-    const mat = PAGE.matrix;
-    for (let row = visRowStart; row <= visRowEnd; row++) {
-      for (let col = visColStart; col <= visColEnd; col++) {
-        const x0 = hx0 + col * scale;
-        const y0 = hy0 + row * scale;
+    drawCoverageDiamonds(h, triLeftX, triTopY, W, H);
+  }
+  ctx.restore();
 
-        if (row === col) {
-          ctx.fillStyle = valToRgbStr(mat[row * n + col]);
-          ctx.fillRect(x0, y0, scale, scale);
-        } else {
-          // Upper-left triangle: mat[col*n+row]
-          ctx.fillStyle = valToRgbStr(mat[col * n + row]);
-          ctx.beginPath();
-          ctx.moveTo(x0, y0);
-          ctx.lineTo(x0 + scale, y0);
-          ctx.lineTo(x0, y0 + scale);
-          ctx.closePath();
-          ctx.fill();
+  // ── Dendrogram, clade strip, labels, selection ──
+  drawTreeOnCanvas(scale, triLeftX, triTopY, treeH);
+  drawCladeStrip(scale, h, triLeftX, triTopY);
+  if (scale >= LABEL_THRESHOLD) drawSpeciesLabels(scale, triLeftX, triTopY, W);
+  if (selectedRegion) drawSelection();
+}
 
-          // Lower-right triangle: mat[row*n+col]
-          ctx.fillStyle = valToRgbStr(mat[row * n + col]);
-          ctx.beginPath();
-          ctx.moveTo(x0 + scale, y0);
-          ctx.lineTo(x0 + scale, y0 + scale);
-          ctx.lineTo(x0, y0 + scale);
-          ctx.closePath();
-          ctx.fill();
-        }
+// Split-diamond rendering for the directional Coverage page (zoomed in).
+function drawCoverageDiamonds(h, triLeftX, triTopY, W, H) {
+  const n = DATA.n;
+  const mat = PAGE.matrix;
+
+  let uMin = Math.floor((0 - triLeftX) / h) - 1;
+  let uMax = Math.ceil((W - triLeftX) / h) + 1;
+  let vMin = Math.floor((0 - triTopY) / h) - 1;
+  let vMax = Math.ceil((H - triTopY) / h) + 1;
+  uMin = Math.max(0, uMin);  uMax = Math.min(2 * n - 2, uMax);
+  vMin = Math.max(0, vMin);  vMax = Math.min(n - 1, vMax);
+
+  for (let v = vMin; v <= vMax; v++) {
+    for (let u = uMin; u <= uMax; u++) {
+      if (((u + v) & 1) !== 0) continue;          // cell centers: u,v same parity
+      const i = (u - v) >> 1, j = (u + v) >> 1;
+      if (i < 0 || j >= n || i > j) continue;
+      const cx = triLeftX + u * h;
+      const cy = triTopY  + v * h;
+
+      if (i === j) {
+        ctx.fillStyle = valToRgbStr(mat[i * n + j]);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - h);
+        ctx.lineTo(cx + h, cy);
+        ctx.lineTo(cx, cy + h);
+        ctx.lineTo(cx - h, cy);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        // Upper triangle — species i covered by species j
+        ctx.fillStyle = valToRgbStr(mat[i * n + j]);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - h);
+        ctx.lineTo(cx + h, cy);
+        ctx.lineTo(cx - h, cy);
+        ctx.closePath();
+        ctx.fill();
+        // Lower triangle — species j covered by species i
+        ctx.fillStyle = valToRgbStr(mat[j * n + i]);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy + h);
+        ctx.lineTo(cx + h, cy);
+        ctx.lineTo(cx - h, cy);
+        ctx.closePath();
+        ctx.fill();
       }
     }
   }
+}
 
-  // ── Clade boundary lines ──
-  if (scale > 1.5) {
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-    ctx.lineWidth = Math.min(1, scale * 0.1);
-    for (const [clade, [s, e]] of Object.entries(DATA.cladeRanges)) {
-      if (e - s < 2) continue;
-      const yLine = hy0 + (e + 1) * scale;
-      ctx.beginPath(); ctx.moveTo(hx0, yLine); ctx.lineTo(hx0 + heatSize, yLine); ctx.stroke();
-      const xLine = hx0 + s * scale;
-      ctx.beginPath(); ctx.moveTo(xLine, hy0); ctx.lineTo(xLine, hy0 + heatSize); ctx.stroke();
-    }
-    ctx.restore();
+// Dendrogram across the top: species index → x, tree depth → y.
+function drawTreeOnCanvas(scale, triLeftX, triTopY, treeH) {
+  const n = DATA.n;
+  const W = canvas.width;
+  // leaf_y in the data = n - 0.5 - speciesIndex
+  const xForLy = (ly) => triLeftX + (n - 0.5 - ly) * scale;
+  // depth fraction: xf=1 at the tips (top edge), xf=0 at the root
+  const yForXf = (xf) => triTopY - (1 - xf) * treeH;
+
+  ctx.lineWidth = Math.max(0.4, Math.min(1.2, scale * 0.08));
+  for (const line of DATA.treeLines) {
+    const [x1f, ly1, x2f, ly2, color] = line;
+    const px1 = xForLy(ly1), px2 = xForLy(ly2);
+    if (Math.max(px1, px2) < -5 || Math.min(px1, px2) > W + 5) continue;
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(px1, yForXf(x1f));
+    ctx.lineTo(px2, yForXf(x2f));
+    ctx.stroke();
+  }
+}
+
+// Clade colour strip just above the heatmap, plus clade names when zoomed.
+function drawCladeStrip(scale, h, triLeftX, triTopY) {
+  const barH = Math.max(4, Math.min(10, scale * 0.45));
+  const W = canvas.width;
+
+  for (const [clade, [s, e]] of Object.entries(DATA.cladeRanges)) {
+    const x0 = triLeftX + s * scale - h;
+    const x1 = triLeftX + e * scale + h;
+    if (x1 < -5 || x0 > W + 5) continue;
+    const idx = DATA.cladeNames.indexOf(clade);
+    const color = DATA.cladeColors[idx] || '#cccccc';
+    ctx.fillStyle = color;
+    ctx.fillRect(x0, triTopY - barH, x1 - x0, barH);
   }
 
-  // ── Draw tree (cladogram) ── (shared across pages)
-  drawTreeOnCanvas(treeW, scale, n);
-
-  // ── Species labels when zoomed in ──
-  if (scale >= 10) {
-    const fontSize = Math.min(scale * 0.65, 14);
-    ctx.font = `${fontSize}px sans-serif`;
-    ctx.fillStyle = '#333';
-
-    // X-axis labels (bottom, rotated)
-    ctx.save();
-    for (let col = visColStart; col <= visColEnd; col++) {
-      const x = hx0 + (col + 0.5) * scale;
-      const y = hy0 + heatSize + 4;
-      if (y < 0) continue;
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(-Math.PI / 2);
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(DATA.leafOrder[col].replace(/_/g, ' '), 0, 0);
-      ctx.restore();
-    }
-    ctx.restore();
-
-    // Y-axis labels (left of heatmap, after tree)
-    ctx.save();
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-    for (let row = visRowStart; row <= visRowEnd; row++) {
-      const x = hx0 - 4;
-      const y = hy0 + (row + 0.5) * scale;
-      if (x < 0) continue;
-      ctx.fillText(DATA.leafOrder[row].replace(/_/g, ' '), x, y);
-    }
-    ctx.restore();
+  if (scale < 3) return;
+  const fontSize = Math.min(13, Math.max(8, scale * 0.5));
+  ctx.font = `600 ${fontSize}px 'Inter', sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  for (const [clade, [s, e]] of Object.entries(DATA.cladeRanges)) {
+    const widthPx = (e - s + 1) * scale;
+    if (widthPx < 46) continue;
+    const cxMid = triLeftX + ((s + e) / 2) * scale;
+    if (cxMid < 0 || cxMid > W) continue;
+    const y = triTopY - barH - 3;
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+    ctx.strokeText(clade, cxMid, y);
+    ctx.fillStyle = '#1e293b';
+    ctx.fillText(clade, cxMid, y);
   }
+}
 
-  // ── Selection rectangle ──
-  if (selectedRegion) {
-    const { r1, r2, c1, c2 } = selectedRegion;
-    const sx = hx0 + c1 * scale;
-    const sy = hy0 + r1 * scale;
-    const sw = (c2 - c1 + 1) * scale;
-    const sh = (r2 - r1 + 1) * scale;
+// Species labels along the diagonal, slanted 45° (parallel to the right edge).
+function drawSpeciesLabels(scale, triLeftX, triTopY, W) {
+  const n = DATA.n;
+  const fontSize = Math.min(13, scale * 0.6);
+  ctx.font = `${fontSize}px 'Inter', sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 3;
+
+  for (let i = 0; i < n; i++) {
+    const x = triLeftX + i * scale;
+    if (x < -5 || x > W + 5) continue;
+    const label = DATA.leafOrder[i].replace(/_/g, ' ');
     ctx.save();
-    ctx.strokeStyle = '#ff4444';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([6, 3]);
-    ctx.strokeRect(sx, sy, sw, sh);
-    ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(255, 68, 68, 0.08)';
-    ctx.fillRect(sx, sy, sw, sh);
+    ctx.translate(x, triTopY - 2);
+    ctx.rotate(-Math.PI / 4);
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.strokeText(label, 5, 0);
+    ctx.fillStyle = '#1e293b';
+    ctx.fillText(label, 5, 0);
     ctx.restore();
   }
 }
 
-function drawTreeOnCanvas(treeW, scale, n) {
-  const tx0 = offsetX;
-  const ty0 = offsetY;
-  const H = canvas.height;
-
-  // Clade background blocks
-  for (const [clade, [s, e]] of Object.entries(DATA.cladeRanges)) {
-    const cladeIdx = DATA.cladeNames.indexOf(clade);
-    const color = DATA.cladeColors[cladeIdx] || '#CCCCCC';
-    const yTop = ty0 + s * scale;
-    const height = (e - s + 1) * scale;
-    ctx.fillStyle = color + '26';
-    ctx.fillRect(tx0, yTop, treeW, height);
-  }
-
-  // Tree lines: [x1_frac, leaf_y, x2_frac, leaf_y2, color]
-  // leaf_y was computed as n - 0.5 - i (species index i).
-  // Pixel y for species i = ty0 + (i + 0.5) * scale = ty0 + (n - leaf_y) * scale.
-  ctx.lineWidth = Math.max(0.3, Math.min(1, scale * 0.08));
-
-  for (const line of DATA.treeLines) {
-    const [x1f, ly1, x2f, ly2, color] = line;
-    const px1 = tx0 + x1f * treeW;
-    const py1 = ty0 + (n - ly1) * scale;
-    const px2 = tx0 + x2f * treeW;
-    const py2 = ty0 + (n - ly2) * scale;
-
-    const minY = Math.min(py1, py2);
-    const maxY = Math.max(py1, py2);
-    if (maxY < -5 || minY > H + 5) continue;
-
-    ctx.strokeStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(px1, py1);
-    ctx.lineTo(px2, py2);
-    ctx.stroke();
-  }
-
-  // Clade labels when zoomed enough
-  if (scale >= 3) {
-    ctx.save();
-    const cladeOrder = [
-      "Mammalia", "Aves", "Crocodilia", "Testudines", "Lepidosauria",
-      "Amphibia", "Sarcopterygii", "Actinopterygii", "Chondrichthyes",
-      "Cyclostomata", "Tunicata", "Cephalochordata", "Ambulacraria"
-    ];
-    const fontSize = Math.min(12, Math.max(7, scale * 0.5));
-    ctx.font = `bold ${fontSize}px sans-serif`;
-    ctx.textBaseline = 'middle';
-    ctx.textAlign = 'center';
-
-    // Include any clades present in the data but not in the canonical order
-    const allClades = cladeOrder.slice();
-    for (const cl of Object.keys(DATA.cladeRanges)) {
-      if (!allClades.includes(cl)) allClades.push(cl);
-    }
-
-    for (const clade of allClades) {
-      const range = DATA.cladeRanges[clade];
-      if (!range) continue;
-      const [s, e] = range;
-      if (e - s < 3) continue;
-      const midY = ty0 + ((s + e) / 2 + 0.5) * scale;
-      if (midY < 0 || midY > H) continue;
-
-      const cladeIdx = DATA.cladeNames.indexOf(clade);
-      ctx.fillStyle = DATA.cladeColors[cladeIdx] || '#888';
-
-      ctx.save();
-      ctx.translate(tx0 + treeW * 0.12, midY);
-      ctx.rotate(-Math.PI / 2);
-      ctx.fillText(clade, 0, 0);
-      ctx.restore();
-    }
-    ctx.restore();
-  }
+// Selection outline — a rotated rectangle through the 4 corner cell centers.
+function drawSelection() {
+  const { r1, r2, c1, c2 } = selectedRegion;
+  const pts = [
+    cellCenter(r1, c1), cellCenter(r1, c2),
+    cellCenter(r2, c2), cellCenter(r2, c1),
+  ];
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let k = 1; k < 4; k++) ctx.lineTo(pts[k][0], pts[k][1]);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(239, 68, 68, 0.10)';
+  ctx.fill();
+  ctx.strokeStyle = '#ef4444';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 3]);
+  ctx.stroke();
+  ctx.restore();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -656,13 +785,12 @@ function showTooltip(e, row, col) {
   const rowCC = DATA.cladeColors[rowCIdx] || '#888';
   const colCC = DATA.cladeColors[colCIdx] || '#888';
 
-  // mat[i*n+j] = value for row species i, column species j
-  const val_rc = PAGE.matrix[row * n + col];   // row -> col
-  const val_cr = PAGE.matrix[col * n + row];   // col -> row
+  // mat[i*n+j] = value for species i vs species j
+  const val_ab = PAGE.matrix[row * n + col];   // A -> B
+  const val_ba = PAGE.matrix[col * n + row];   // B -> A
 
   const isCoverage = PAGE.key === 'coverage';
 
-  // Value formatter depends on page type
   const fmtSim = (v) => {
     if (v === null || v === undefined) return '<span style="color:#888">N/A</span>';
     const log = Math.log10(v);
@@ -672,34 +800,31 @@ function showTooltip(e, row, col) {
     if (v === null || v === undefined) return '<span style="color:#888">N/A</span>';
     return `<span class="val">${(v * 100).toFixed(1)}%</span>`;
   };
-
   const commonHtml = (c) => c ? ` <span class="common-name">(${c})</span>` : '';
 
   let html;
   if (row === col) {
     html = `<div><span class="species-name">${rowL.sp}</span>${commonHtml(rowL.common)}
             <span class="clade-tag" style="background:${rowCC}40;color:${rowCC}">${rowClade}</span></div>
-            <div style="margin-top:4px"><span class="label">Diagonal (self) / 对角线（自身）</span></div>`;
+            <div style="margin-top:4px"><span class="label">Diagonal &mdash; self comparison</span></div>`;
   } else if (isCoverage) {
-    // Coverage page — asymmetric, show direction explicitly as percentages
-    html = `<div><b>Row / 行:</b> <span class="species-name">${rowL.sp}</span>${commonHtml(rowL.common)}
+    html = `<div><b>A:</b> <span class="species-name">${rowL.sp}</span>${commonHtml(rowL.common)}
             <span class="clade-tag" style="background:${rowCC}40;color:${rowCC}">${rowClade}</span></div>
-            <div><b>Col / 列:</b> <span class="species-name">${colL.sp}</span>${commonHtml(colL.common)}
+            <div><b>B:</b> <span class="species-name">${colL.sp}</span>${commonHtml(colL.common)}
             <span class="clade-tag" style="background:${colCC}40;color:${colCC}">${colClade}</span></div>
-            <div style="margin-top:6px;border-top:1px solid #444;padding-top:6px">
-              <div><span class="label">${rowL.sp} covered by ${colL.sp}:</span> ${fmtCov(val_rc)}</div>
-              <div class="dir-note">row genome covered by column genome / 行基因组被列基因组覆盖的比例</div>
-              <div style="margin-top:4px"><span class="label">${colL.sp} covered by ${rowL.sp}:</span> ${fmtCov(val_cr)}</div>
-              <div class="dir-note">column genome covered by row genome / 列基因组被行基因组覆盖的比例</div>
+            <div class="tt-divider">
+              <div><span class="label">${rowL.sp} covered by ${colL.sp}:</span> ${fmtCov(val_ab)}</div>
+              <div class="dir-note">Upper triangle &mdash; fraction of A's genome covered by B</div>
+              <div style="margin-top:4px"><span class="label">${colL.sp} covered by ${rowL.sp}:</span> ${fmtCov(val_ba)}</div>
+              <div class="dir-note">Lower triangle &mdash; fraction of B's genome covered by A</div>
             </div>`;
   } else {
-    // Similarity page — symmetric weighted Jaccard
-    html = `<div><b>Row / 行:</b> <span class="species-name">${rowL.sp}</span>${commonHtml(rowL.common)}
+    html = `<div><b>A:</b> <span class="species-name">${rowL.sp}</span>${commonHtml(rowL.common)}
             <span class="clade-tag" style="background:${rowCC}40;color:${rowCC}">${rowClade}</span></div>
-            <div><b>Col / 列:</b> <span class="species-name">${colL.sp}</span>${commonHtml(colL.common)}
+            <div><b>B:</b> <span class="species-name">${colL.sp}</span>${commonHtml(colL.common)}
             <span class="clade-tag" style="background:${colCC}40;color:${colCC}">${colClade}</span></div>
-            <div style="margin-top:6px;border-top:1px solid #444;padding-top:6px">
-              <div><span class="label">Weighted Jaccard / 加权 Jaccard 相似性:</span> ${fmtSim(val_rc)}</div>
+            <div class="tt-divider">
+              <div><span class="label">Weighted Jaccard similarity:</span> ${fmtSim(val_ab)}</div>
             </div>`;
   }
 
@@ -719,7 +844,7 @@ function hideTooltip() {
 
 // ═══════════════════════════════════════════════════════════
 // Tab switching — re-render from the selected page's matrix.
-// Tree / clade bars / labels / zoom / pan / selection are SHARED.
+// Tree / clade strip / labels / zoom / pan / selection are SHARED.
 // ═══════════════════════════════════════════════════════════
 function switchPage(idx) {
   if (!DATA || idx === currentPageIdx) return;
@@ -727,15 +852,11 @@ function switchPage(idx) {
   currentPageIdx = idx;
   PAGE = DATA.pages[idx];
 
-  // Update active tab styling
-  document.querySelectorAll('.tab').forEach((t) => {
+  document.querySelectorAll('.seg').forEach((t) => {
     t.classList.toggle('active', Number(t.dataset.page) === idx);
   });
 
-  // Ensure this page's overview is rendered (cached after first time)
   prerenderOverview(idx);
-
-  // Re-draw colorbar/legend for the new page's color range
   drawColorbar();
   hideTooltip();
   requestDraw();
@@ -751,9 +872,7 @@ function setupEvents() {
   canvas.addEventListener('mousemove', (e) => {
     if (isPanning || isSelecting) { hideTooltip(); return; }
     const rect = canvas.getBoundingClientRect();
-    const cx = e.clientX - rect.left;
-    const cy = e.clientY - rect.top;
-    const cell = canvasToCell(cx, cy);
+    const cell = canvasToCell(e.clientX - rect.left, e.clientY - rect.top);
     if (cell) showTooltip(e, cell.row, cell.col);
     else hideTooltip();
   });
@@ -784,10 +903,8 @@ function setupEvents() {
     }
     if (isSelecting) {
       const rect = canvas.getBoundingClientRect();
-      const cx = e.clientX - rect.left;
-      const cy = e.clientY - rect.top;
       const c1 = canvasToCell(selCanvasStart.x, selCanvasStart.y);
-      const c2 = canvasToCell(cx, cy);
+      const c2 = canvasToCell(e.clientX - rect.left, e.clientY - rect.top);
       if (c1 && c2) {
         selectedRegion = {
           r1: Math.min(c1.row, c2.row),
@@ -806,7 +923,8 @@ function setupEvents() {
     if (isSelecting) { isSelecting = false; }
   });
 
-  // Zoom toward cursor
+  // Zoom toward cursor. factor = exp of the clamped wheel delta, so a
+  // single notch produces a small, smooth step.
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
     const rect = canvas.getBoundingClientRect();
@@ -814,14 +932,15 @@ function setupEvents() {
     const my = e.clientY - rect.top;
 
     const oldZoom = zoom;
-    const factor = e.deltaY > 0 ? 0.85 : 1.18;
+    const delta = Math.max(-ZOOM_DELTA_CLAMP, Math.min(ZOOM_DELTA_CLAMP, e.deltaY));
+    const factor = Math.exp(-delta * ZOOM_SENSITIVITY);
     zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * factor));
 
     const s = zoom / oldZoom;
     offsetX = mx - s * (mx - offsetX);
     offsetY = my - s * (my - offsetY);
 
-    document.getElementById('zoom-label').textContent = `Zoom: ${zoom.toFixed(1)}x`;
+    document.getElementById('zoom-label').textContent = `${zoom.toFixed(1)}×`;
     requestDraw();
   }, { passive: false });
 
@@ -840,8 +959,8 @@ function updateSelectionInfo() {
   if (selectedRegion) {
     const { r1, r2, c1, c2 } = selectedRegion;
     document.getElementById('sel-text').textContent =
-      `Selected: ${r2-r1+1} rows × ${c2-c1+1} cols`;
-    info.style.display = 'block';
+      `Selected block: ${r2 - r1 + 1} × ${c2 - c1 + 1} species`;
+    info.style.display = 'flex';
   } else {
     info.style.display = 'none';
   }
@@ -854,24 +973,25 @@ function clearSelection() {
 }
 
 function resetView() {
-  zoom = 1;
   fitView();
-  document.getElementById('zoom-label').textContent = 'Zoom: 1.0x';
+  document.getElementById('zoom-label').textContent = '1.0×';
   requestDraw();
 }
 
+// Fit the whole triangle (dendrogram + heatmap) into the canvas.
 function fitView() {
   if (!DATA) return;
   const W = canvas.width;
   const H = canvas.height;
   const n = DATA.n;
-  const maxScale = Math.min(W * (1 - TREE_FRAC) / n, H / n);
-  unitSize = maxScale;
+  const totalHFrac = TREE_FRAC + 0.5;          // height / width ratio of the figure
+  const sW = W / n;
+  const sH = H / (n * totalHFrac);
+  unitSize = Math.min(sW, sH) * 0.94;
   zoom = 1;
   const scale = getScale();
-  const treeW = getTreeWidth();
-  const totalW = treeW + n * scale;
-  const totalH = n * scale;
+  const totalW = n * scale;
+  const totalH = n * scale * totalHFrac;
   offsetX = (W - totalW) / 2;
   offsetY = (H - totalH) / 2;
 }
@@ -904,7 +1024,6 @@ function drawColorbar() {
   let html = '';
 
   if (PAGE.key === 'coverage' && PAGE.colorTransform === 'log10') {
-    // Coverage: show ticks as percentages of the raw value
     const pctStops = [1, 5, 10, 25, 50, 75, 100];
     for (const pct of pctStops) {
       const logV = Math.log10(pct / 100);
@@ -913,7 +1032,6 @@ function drawColorbar() {
       html += `<span style="position:absolute;top:${top}px;right:0;transform:translateY(-50%)">${pct}%</span>`;
     }
   } else {
-    // Default: tick marks at 0.5 intervals in transformed space
     const step = range > 4 ? 1.0 : 0.5;
     for (let v = Math.ceil(PAGE.vmin / step) * step; v <= PAGE.vmax + 1e-9; v += step) {
       const top = (1 - (v - PAGE.vmin) / range) * 300;
@@ -922,10 +1040,9 @@ function drawColorbar() {
   }
   ticksDiv.innerHTML = html;
 
-  // Colorbar caption
   const lbl = document.getElementById('cb-label');
   if (PAGE.key === 'coverage') {
-    lbl.textContent = 'Coverage 覆盖度';
+    lbl.textContent = 'Coverage';
   } else {
     lbl.innerHTML = 'log₁₀(wJ)';
   }
@@ -938,20 +1055,20 @@ function drawLegend() {
     "Sarcopterygii","Actinopterygii","Chondrichthyes","Cyclostomata",
     "Tunicata","Cephalochordata","Ambulacraria"
   ];
-  // Include any clades present in the data but missing from canonical order
   const all = order.slice();
   for (const cl of Object.keys(DATA.cladeRanges)) {
     if (!all.includes(cl)) all.push(cl);
   }
-  let html = '';
+  let items = '';
   for (const cl of all) {
     const r = DATA.cladeRanges[cl];
     if (!r) continue;
     const idx = DATA.cladeNames.indexOf(cl);
     const color = (idx >= 0 ? DATA.cladeColors[idx] : '#CCCCCC') || '#CCCCCC';
-    html += `<div class="legend-item"><div class="legend-swatch" style="background:${color}"></div>${cl} (${r[1]-r[0]+1})</div>`;
+    items += `<div class="legend-item"><div class="legend-swatch" style="background:${color}"></div>`
+           + `${cl} <span class="legend-count">${r[1]-r[0]+1}</span></div>`;
   }
-  div.innerHTML = html;
+  div.innerHTML = `<div class="legend-title">Clades</div><div class="legend-items">${items}</div>`;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -971,18 +1088,6 @@ function showError(msg) {
   const loading = document.getElementById('loading');
   loading.innerHTML = `<div id="error-box">${msg}</div>`;
   loading.style.display = 'flex';
-}
-
-// Apply page label text from the JSON (falls back to defaults already in HTML)
-function applyTabLabels() {
-  if (!DATA.pages) return;
-  for (let i = 0; i < DATA.pages.length && i < 2; i++) {
-    const p = DATA.pages[i];
-    const tab = document.getElementById('tab-' + i);
-    if (!tab) continue;
-    if (p.labelZh) tab.querySelector('.tab-zh').textContent = p.labelZh;
-    if (p.label) tab.querySelector('.tab-en').textContent = p.label;
-  }
 }
 
 async function init() {
@@ -1011,20 +1116,17 @@ async function init() {
     return;
   }
 
-  // Validate the data contract minimally
   if (!DATA.pages || !DATA.pages.length || !DATA.n) {
     showError('heatmap_data.json is missing required fields (pages / n).');
     return;
   }
 
-  document.getElementById('load-text').textContent = 'Rendering heatmap... / 正在渲染...';
+  document.getElementById('load-text').textContent = 'Rendering heatmap…';
   await new Promise(r => setTimeout(r, 30));
 
   currentPageIdx = 0;
   PAGE = DATA.pages[0];
-  applyTabLabels();
 
-  // Pre-render overview for the first page (others render lazily on tab switch)
   prerenderOverview(0);
 
   fitView();

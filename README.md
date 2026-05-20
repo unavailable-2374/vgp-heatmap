@@ -4,10 +4,18 @@ Interactive web heatmaps of all-vs-all genome alignments for **581 VGP genomes**
 
 **Live site:** https://unavailable-2374.github.io/vgp-heatmap/
 
+The matrix is shown as a **45°-rotated triangle** — the diagonal becomes the
+flat top edge, the dendrogram sits above it, and each pair is one diamond cell.
+Because every pair is computed from a single PAF, only one triangle is needed
+(no redundant mirrored half).
+
 Two heatmap pages:
 
-* **Similarity** — weighted-Jaccard similarity between each genome pair (symmetric).
-* **Coverage** — fraction of genome *i* covered when aligned to genome *j* (directional).
+* **Similarity** — weighted-Jaccard similarity between each genome pair
+  (symmetric; one solid diamond per pair).
+* **Coverage** — fraction of genome *i* covered when aligned to genome *j*
+  (directional; each diamond splits into two triangles, one per direction,
+  when zoomed in).
 
 ## Method
 
