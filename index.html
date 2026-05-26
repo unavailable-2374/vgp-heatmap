@@ -2,7 +2,7 @@
 <!--
   ════════════════════════════════════════════════════════════════════════
   VGP Genome Pairwise Heatmap Viewer
-  Triangle / diamond layout (matrix rotated 45°, dendrogram on top).
+  Triangle / diamond layout (matrix rotated 45°, dendrogram on the short edge).
   2 pages: Similarity (symmetric) + Coverage (directional, split diamonds).
 
   IMPORTANT: This file uses fetch() to load `heatmap_data.json`, so it MUST be
@@ -533,6 +533,8 @@ canvas { display: block; cursor: crosshair; }
   <div id="help-hint">
     <span>Scroll to <b>zoom</b></span>
     <span class="hh-sep">&middot;</span>
+    <span><kbd>Ctrl</kbd> + scroll to <b>fast zoom</b></span>
+    <span class="hh-sep">&middot;</span>
     <span>Drag to <b>pan</b></span>
     <span class="hh-sep">&middot;</span>
     <span><kbd>Shift</kbd> + drag to <b>select</b></span>
@@ -564,12 +566,17 @@ let currentPageIdx = 0;     // 0 = similarity, 1 = coverage
 let PAGE = null;            // shorthand for DATA.pages[currentPageIdx]
 
 // ── Layout (triangle / diamond) ──
-// The pairwise matrix is rotated 45°: the diagonal becomes the flat top
-// edge, the dendrogram sits above it, and the lower triangle hangs below
-// as a downward-pointing triangle of diamond-shaped cells.
-const TREE_FRAC = 0.14;        // dendrogram height as a fraction of triangle width
+// The pairwise matrix is rotated 45° so the main diagonal becomes the long
+// right-hand sample axis. The upper triangle extends leftward, and the
+// dendrogram is projected onto the short upper-left edge.
+const TREE_FRAC = 0.16;        // dendrogram depth as a fraction of triangle width
+const TOP_MARGIN = 18;         // breathing room for the clade strip above the sample edge
 const VECTOR_THRESHOLD = 10;   // cell px size at/above which Coverage draws split diamonds
-const LABEL_THRESHOLD  = 13;   // cell px size at/above which species labels are drawn
+const LABEL_THRESHOLD  = 1.1;  // cell px size at/above which species labels are drawn
+const LABEL_PANEL_W = 260;     // right-side room for dense species labels
+const SPECIES_LABEL_FONT_MIN = 18;
+const SPECIES_LABEL_FONT_MAX = 28;
+const SPECIES_LABEL_MIN_SCALE = 20;
 
 // View state — SHARED across both pages (zoom/pan persist on tab switch)
 let unitSize = 1;           // pixels per matrix cell at zoom=1
@@ -580,6 +587,7 @@ const MIN_ZOOM = 0.3, MAX_ZOOM = 50;
 // Wheel-zoom sensitivity. Lower = gentler. factor = exp(-deltaY * SENS),
 // with deltaY clamped so high-resolution trackpads can't make the view jump.
 const ZOOM_SENSITIVITY = 0.0008;
+const FAST_ZOOM_MULTIPLIER = 4;
 const ZOOM_DELTA_CLAMP = 100;
 
 // Selection (shared)
@@ -649,23 +657,35 @@ function valToRgb(rawVal) {
 // Coordinate system  (triangle / diamond layout)
 // ═══════════════════════════════════════════════════════════
 // Cell (i,j) with j >= i is a diamond centered at:
-//     cx = triLeftX + (i + j) * half
-//     cy = triTopY  + (j - i) * half
-// where half = scale/2.  Diagonal cells (i==j) sit on the flat top edge
-// (triTopY) and render as downward half-diamonds after the triangle clip.
+//     cx = triLeftX + (i - j) * half
+//     cy = triTopY  + (i + j) * half
+// where half = scale/2. Diagonal cells (i==j) sit on the right-hand sample
+// axis, and the upper triangle extends toward the upper-left edge.
 // The whole figure is  offset + scale * const , so zoom-toward-cursor
 // stays a plain uniform scale about (offsetX, offsetY).
 
 function getScale()  { return unitSize * zoom; }
 function getHalf()   { return getScale() / 2; }
-function getTreeH()  { return DATA.n * getScale() * TREE_FRAC; }
-function getTriLeftX() { return offsetX + getHalf(); }
-function getTriTopY()  { return offsetY + getTreeH(); }
+function getTreeDepth() { return DATA.n * getScale() * TREE_FRAC; }
+function getTreeEdgeOffset(scale) {
+  return scale / 2 + Math.max(3, Math.min(10, scale * 0.15));
+}
+function getTriLeftX() { return offsetX; }
+function getTriTopY()  { return offsetY; }
+function getCladeTileHalf(scale) {
+  return scale / 2;
+}
+function getCladeTileCenterX(scale, triLeftX) {
+  return triLeftX;
+}
+function getSpeciesLabelX(scale, triLeftX) {
+  return getCladeTileCenterX(scale, triLeftX) + getCladeTileHalf(scale) + 18;
+}
 
 // Screen-space center of cell (i,j).
 function cellCenter(i, j) {
   const h = getHalf();
-  return [getTriLeftX() + (i + j) * h, getTriTopY() + (j - i) * h];
+  return [getTriLeftX() + (i - j) * h, getTriTopY() + (i + j) * h];
 }
 
 // Map a canvas point to the nearest cell {row,col} with row <= col,
@@ -673,11 +693,14 @@ function cellCenter(i, j) {
 function canvasToCell(cx, cy) {
   const h = getHalf();
   if (h <= 0) return null;
-  const u = (cx - getTriLeftX()) / h;   // = i + j
-  const v = (cy - getTriTopY()) / h;    // = j - i
+  const u = (cy - getTriTopY()) / h;    // = i + j
+  const v = (getTriLeftX() - cx) / h;   // = j - i
   const i = Math.round((u - v) / 2);
   const j = Math.round((u + v) / 2);
   if (i < 0 || j < 0 || i >= DATA.n || j >= DATA.n || i > j) return null;
+  const u0 = i + j;
+  const v0 = j - i;
+  if (Math.abs(u - u0) + Math.abs(v - v0) > 1.000001) return null;
   return { row: i, col: j };
 }
 
@@ -740,44 +763,87 @@ function draw() {
   const h = scale / 2;
   const triLeftX = getTriLeftX();
   const triTopY  = getTriTopY();
-  const treeH    = getTreeH();
+  const treeDepth = getTreeDepth();
 
   // Triangle corners
-  const TLx = triLeftX - h,            TLy = triTopY;
-  const TRx = triLeftX + (2 * n - 1) * h, TRy = triTopY;
-  const APx = triLeftX + (n - 1) * h,  APy = triTopY + n * h;
-
-  // ── Heatmap (clipped to the triangle) ──
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(TLx, TLy);
-  ctx.lineTo(TRx, TRy);
-  ctx.lineTo(APx, APy);
-  ctx.closePath();
-  ctx.clip();
+  const TLx = triLeftX,                TLy = triTopY;
+  const TRx = triLeftX - n * h,        TRy = triTopY + n * h;
+  const APx = triLeftX,                APy = triTopY + n * scale;
 
   const isCoverage = PAGE.key === 'coverage';
-  const useVector = isCoverage && scale >= VECTOR_THRESHOLD;
+  const useVector = scale >= VECTOR_THRESHOLD;
 
   if (!useVector) {
+    // ── Heatmap overview (clipped to the triangle) ──
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(TLx, TLy);
+    ctx.lineTo(TRx, TRy);
+    ctx.lineTo(APx, APy);
+    ctx.closePath();
+    ctx.clip();
+
     // Rotate the pre-rendered overview 45° into the diamond grid.
     const ov = overviewImages[currentPageIdx];
     if (ov) {
       ctx.imageSmoothingEnabled = scale < 2.5;
-      ctx.setTransform(h, h, h, -h, triLeftX - h, triTopY);
+      ctx.setTransform(-h, h, h, h, triLeftX, triTopY - h);
       ctx.drawImage(ov, 0, 0);
       // setTransform reset happens via restore() below
     }
-  } else {
+    ctx.restore();
+  } else if (isCoverage) {
+    // Vector mode draws full diamonds. Do not apply the old triangle clip,
+    // otherwise diagonal cells are visibly sliced in half.
     drawCoverageDiamonds(h, triLeftX, triTopY, W, H);
+  } else {
+    // Vector mode draws full diamonds. Do not apply the old triangle clip,
+    // otherwise diagonal cells are visibly sliced in half.
+    drawSimilarityDiamonds(h, triLeftX, triTopY, W, H);
   }
-  ctx.restore();
 
   // ── Dendrogram, clade strip, labels, selection ──
-  drawTreeOnCanvas(scale, triLeftX, triTopY, treeH);
+  drawTreeOnCanvas(scale, h, triLeftX, triTopY, treeDepth);
   drawCladeStrip(scale, h, triLeftX, triTopY);
-  if (scale >= LABEL_THRESHOLD) drawSpeciesLabels(scale, triLeftX, triTopY, W);
+  if (scale >= SPECIES_LABEL_MIN_SCALE) drawSpeciesLabels(scale, triLeftX, triTopY, W);
   if (selectedRegion) drawSelection();
+}
+
+// Whole-diamond rendering for the symmetric Similarity page (zoomed in).
+function drawSimilarityDiamonds(h, triLeftX, triTopY, W, H) {
+  const n = DATA.n;
+  const mat = PAGE.matrix;
+
+  let uMin = Math.floor((0 - triTopY) / h) - 1;
+  let uMax = Math.ceil((H - triTopY) / h) + 1;
+  let vMin = Math.floor((triLeftX - W) / h) - 1;
+  let vMax = Math.ceil((triLeftX - 0) / h) + 1;
+  uMin = Math.max(0, uMin);  uMax = Math.min(2 * n - 2, uMax);
+  vMin = Math.max(0, vMin);  vMax = Math.min(n - 1, vMax);
+
+  for (let v = vMin; v <= vMax; v++) {
+    for (let u = uMin; u <= uMax; u++) {
+      if (((u + v) & 1) !== 0) continue;
+      const i = (u - v) >> 1, j = (u + v) >> 1;
+      if (i < 0 || j >= n || i > j) continue;
+      const cx = triLeftX - v * h;
+      const cy = triTopY + u * h;
+
+      ctx.fillStyle = valToRgbStr(mat[i * n + j]);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - h);
+      ctx.lineTo(cx + h, cy);
+      ctx.lineTo(cx, cy + h);
+      ctx.lineTo(cx - h, cy);
+      ctx.closePath();
+      ctx.fill();
+      if (h >= 3) {
+        ctx.strokeStyle = 'rgba(36,28,16,0.20)';
+        ctx.lineWidth = Math.max(0.45, Math.min(1.1, h * 0.035));
+        ctx.stroke();
+      }
+    }
+  }
 }
 
 // Split-diamond rendering for the directional Coverage page (zoomed in).
@@ -785,10 +851,10 @@ function drawCoverageDiamonds(h, triLeftX, triTopY, W, H) {
   const n = DATA.n;
   const mat = PAGE.matrix;
 
-  let uMin = Math.floor((0 - triLeftX) / h) - 1;
-  let uMax = Math.ceil((W - triLeftX) / h) + 1;
-  let vMin = Math.floor((0 - triTopY) / h) - 1;
-  let vMax = Math.ceil((H - triTopY) / h) + 1;
+  let uMin = Math.floor((0 - triTopY) / h) - 1;
+  let uMax = Math.ceil((H - triTopY) / h) + 1;
+  let vMin = Math.floor((triLeftX - W) / h) - 1;
+  let vMax = Math.ceil((triLeftX - 0) / h) + 1;
   uMin = Math.max(0, uMin);  uMax = Math.min(2 * n - 2, uMax);
   vMin = Math.max(0, vMin);  vMax = Math.min(n - 1, vMax);
 
@@ -797,8 +863,8 @@ function drawCoverageDiamonds(h, triLeftX, triTopY, W, H) {
       if (((u + v) & 1) !== 0) continue;          // cell centers: u,v same parity
       const i = (u - v) >> 1, j = (u + v) >> 1;
       if (i < 0 || j >= n || i > j) continue;
-      const cx = triLeftX + u * h;
-      const cy = triTopY  + v * h;
+      const cx = triLeftX - v * h;
+      const cy = triTopY  + u * h;
 
       if (i === j) {
         ctx.fillStyle = valToRgbStr(mat[i * n + j]);
@@ -809,6 +875,11 @@ function drawCoverageDiamonds(h, triLeftX, triTopY, W, H) {
         ctx.lineTo(cx - h, cy);
         ctx.closePath();
         ctx.fill();
+        if (h >= 3) {
+          ctx.strokeStyle = 'rgba(36,28,16,0.20)';
+          ctx.lineWidth = Math.max(0.45, Math.min(1.1, h * 0.035));
+          ctx.stroke();
+        }
       } else {
         // Upper triangle — species i covered by species j
         ctx.fillStyle = valToRgbStr(mat[i * n + j]);
@@ -826,87 +897,120 @@ function drawCoverageDiamonds(h, triLeftX, triTopY, W, H) {
         ctx.lineTo(cx - h, cy);
         ctx.closePath();
         ctx.fill();
+        if (h >= 3) {
+          ctx.strokeStyle = 'rgba(36,28,16,0.20)';
+          ctx.lineWidth = Math.max(0.45, Math.min(1.1, h * 0.035));
+          ctx.beginPath();
+          ctx.moveTo(cx, cy - h);
+          ctx.lineTo(cx + h, cy);
+          ctx.lineTo(cx, cy + h);
+          ctx.lineTo(cx - h, cy);
+          ctx.closePath();
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(cx - h, cy);
+          ctx.lineTo(cx + h, cy);
+          ctx.stroke();
+        }
       }
     }
   }
 }
 
-// Dendrogram across the top: species index → x, tree depth → y.
-function drawTreeOnCanvas(scale, triLeftX, triTopY, treeH) {
+// Dendrogram along the upper-left edge. Species index follows that slanted
+// edge; tree depth grows outward above/left of the heatmap.
+function drawTreeOnCanvas(scale, h, triLeftX, triTopY, treeDepth) {
   const n = DATA.n;
   const W = canvas.width;
-  // leaf_y in the data = n - 0.5 - speciesIndex
-  const xForLy = (ly) => triLeftX + (n - 0.5 - ly) * scale;
-  // depth fraction: xf=1 at the tips (top edge), xf=0 at the root
-  const yForXf = (xf) => triTopY - (1 - xf) * treeH;
+  const H = canvas.height;
+  const invSqrt2 = Math.SQRT1_2;
+  // leaf_y in the data = n - 0.5 - speciesIndex.
+  const pointFor = (xf, ly) => {
+    const idx = n - 0.5 - ly;
+    const baseX = triLeftX - idx * h;
+    const baseY = triTopY + idx * h;
+    const outward = getTreeEdgeOffset(scale) + (1 - xf) * treeDepth;
+    return [
+      baseX - outward * invSqrt2,
+      baseY - outward * invSqrt2,
+    ];
+  };
 
   ctx.lineWidth = Math.max(0.4, Math.min(1.2, scale * 0.08));
   for (const line of DATA.treeLines) {
     const [x1f, ly1, x2f, ly2, color] = line;
-    const px1 = xForLy(ly1), px2 = xForLy(ly2);
-    if (Math.max(px1, px2) < -5 || Math.min(px1, px2) > W + 5) continue;
+    const [px1, py1] = pointFor(x1f, ly1);
+    const [px2, py2] = pointFor(x2f, ly2);
+    if (Math.max(px1, px2) < -5 || Math.min(px1, px2) > W + 5 ||
+        Math.max(py1, py2) < -5 || Math.min(py1, py2) > H + 5) continue;
     ctx.strokeStyle = color;
     ctx.beginPath();
-    ctx.moveTo(px1, yForXf(x1f));
-    ctx.lineTo(px2, yForXf(x2f));
+    ctx.moveTo(px1, py1);
+    ctx.lineTo(px2, py2);
     ctx.stroke();
   }
 }
 
-// Clade colour strip just above the heatmap, plus clade names when zoomed.
+// Per-sample clade colour diamonds beside the right-hand sample axis.
 function drawCladeStrip(scale, h, triLeftX, triTopY) {
-  const barH = Math.max(4, Math.min(10, scale * 0.45));
-  const W = canvas.width;
+  const n = DATA.n;
+  const tileH = getCladeTileHalf(scale);
+  const x = getCladeTileCenterX(scale, triLeftX);
+  const H = canvas.height;
 
-  for (const [clade, [s, e]] of Object.entries(DATA.cladeRanges)) {
-    const x0 = triLeftX + s * scale - h;
-    const x1 = triLeftX + e * scale + h;
-    if (x1 < -5 || x0 > W + 5) continue;
-    const idx = DATA.cladeNames.indexOf(clade);
-    const color = DATA.cladeColors[idx] || '#cccccc';
-    ctx.fillStyle = color;
-    ctx.fillRect(x0, triTopY - barH, x1 - x0, barH);
-  }
-
-  if (scale < 3) return;
-  const fontSize = Math.min(13, Math.max(8, scale * 0.5));
-  ctx.font = `600 ${fontSize}px 'Fraunces', Georgia, serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'bottom';
-  for (const [clade, [s, e]] of Object.entries(DATA.cladeRanges)) {
-    const widthPx = (e - s + 1) * scale;
-    if (widthPx < 46) continue;
-    const cxMid = triLeftX + ((s + e) / 2) * scale;
-    if (cxMid < 0 || cxMid > W) continue;
-    const y = triTopY - barH - 3;
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = 'rgba(244,238,222,0.92)';
-    ctx.strokeText(clade, cxMid, y);
-    ctx.fillStyle = '#241c10';
-    ctx.fillText(clade, cxMid, y);
+  for (let i = 0; i < n; i++) {
+    const y = triTopY + i * scale;
+    if (y + tileH < -5 || y - tileH > H + 5) continue;
+    ctx.fillStyle = cladeColorForIndex(i);
+    ctx.beginPath();
+    ctx.moveTo(x, y - tileH);
+    ctx.lineTo(x + tileH, y);
+    ctx.lineTo(x, y + tileH);
+    ctx.lineTo(x - tileH, y);
+    ctx.closePath();
+    ctx.fill();
+    if (tileH >= 4) {
+      ctx.strokeStyle = 'rgba(244,238,222,0.72)';
+      ctx.lineWidth = Math.max(0.45, Math.min(1.1, tileH * 0.05));
+      ctx.stroke();
+    }
   }
 }
 
-// Species labels along the diagonal, slanted 45° (parallel to the right edge).
+function cladeColorForIndex(i) {
+  for (const [clade, [s, e]] of Object.entries(DATA.cladeRanges)) {
+    if (i >= s && i <= e) {
+      const idx = DATA.cladeNames.indexOf(clade);
+      return DATA.cladeColors[idx] || '#241c10';
+    }
+  }
+  return '#241c10';
+}
+
+// Species labels along the long right-hand diagonal axis.
 function drawSpeciesLabels(scale, triLeftX, triTopY, W) {
   const n = DATA.n;
-  const fontSize = Math.min(13, scale * 0.6);
+  const H = canvas.height;
+  const fontSize = Math.max(
+    SPECIES_LABEL_FONT_MIN,
+    Math.min(SPECIES_LABEL_FONT_MAX, scale * 1.55)
+  );
   ctx.font = `${fontSize}px 'Fraunces', Georgia, serif`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 2.5;
 
   for (let i = 0; i < n; i++) {
-    const x = triLeftX + i * scale;
-    if (x < -5 || x > W + 5) continue;
+    const x = getSpeciesLabelX(scale, triLeftX);
+    const y = triTopY + i * scale;
+    if (x < -5 || x > W + LABEL_PANEL_W || y < -5 || y > H + 5) continue;
     const label = DATA.leafOrder[i].replace(/_/g, ' ');
     ctx.save();
-    ctx.translate(x, triTopY - 2);
-    ctx.rotate(-Math.PI / 4);
+    ctx.translate(x, y);
     ctx.strokeStyle = 'rgba(244,238,222,0.92)';
-    ctx.strokeText(label, 5, 0);
-    ctx.fillStyle = '#241c10';
-    ctx.fillText(label, 5, 0);
+    ctx.strokeText(label, 0, 0);
+    ctx.fillStyle = cladeColorForIndex(i);
+    ctx.fillText(label, 0, 0);
     ctx.restore();
   }
 }
@@ -1092,8 +1196,8 @@ function setupEvents() {
     if (isSelecting) { isSelecting = false; }
   });
 
-  // Zoom toward cursor. factor = exp of the clamped wheel delta, so a
-  // single notch produces a small, smooth step.
+  // Zoom toward cursor. Holding Control increases the wheel sensitivity
+  // for fast navigation across the full zoom range.
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
     const rect = canvas.getBoundingClientRect();
@@ -1102,7 +1206,8 @@ function setupEvents() {
 
     const oldZoom = zoom;
     const delta = Math.max(-ZOOM_DELTA_CLAMP, Math.min(ZOOM_DELTA_CLAMP, e.deltaY));
-    const factor = Math.exp(-delta * ZOOM_SENSITIVITY);
+    const sensitivity = ZOOM_SENSITIVITY * (e.ctrlKey ? FAST_ZOOM_MULTIPLIER : 1);
+    const factor = Math.exp(-delta * sensitivity);
     zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * factor));
 
     const s = zoom / oldZoom;
@@ -1147,22 +1252,29 @@ function resetView() {
   requestDraw();
 }
 
-// Fit the whole triangle (dendrogram + heatmap) into the canvas.
+// Fit the whole triangle (short-edge dendrogram + heatmap) into the canvas.
 function fitView() {
   if (!DATA) return;
   const W = canvas.width;
   const H = canvas.height;
   const n = DATA.n;
-  const totalHFrac = TREE_FRAC + 0.5;          // height / width ratio of the figure
-  const sW = W / n;
-  const sH = H / (n * totalHFrac);
+  const treeExtraFrac = TREE_FRAC * Math.SQRT1_2;
+  const totalWFrac = 0.5 + treeExtraFrac;
+  const totalHFrac = 1 + treeExtraFrac;
+  const labelW = Math.min(LABEL_PANEL_W, W * 0.24);
+  const sW = (W - labelW) / (n * totalWFrac);
+  const sH = (H - TOP_MARGIN) / (n * totalHFrac);
   unitSize = Math.min(sW, sH) * 0.94;
   zoom = 1;
   const scale = getScale();
-  const totalW = n * scale;
-  const totalH = n * scale * totalHFrac;
-  offsetX = (W - totalW) / 2;
-  offsetY = (H - totalH) / 2;
+  const treeDepth = n * scale * TREE_FRAC;
+  const treeExtra = (treeDepth + getTreeEdgeOffset(scale)) * Math.SQRT1_2;
+  const heatW = n * scale * 0.5;
+  const heatH = n * scale;
+  const totalW = heatW + treeExtra + labelW;
+  const totalH = heatH + treeExtra + TOP_MARGIN;
+  offsetX = (W - totalW) / 2 + treeExtra + heatW;
+  offsetY = (H - totalH) / 2 + treeExtra + TOP_MARGIN;
 }
 
 // ═══════════════════════════════════════════════════════════
