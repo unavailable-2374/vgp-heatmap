@@ -538,6 +538,7 @@ canvas { display: block; cursor: crosshair; }
 .pc-links { display: flex; flex-direction: column; gap: 6px; margin-top: 1px; }
 .dl-pill {
   display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap;
   font-family: var(--mono); font-size: 11px;
   color: var(--green-deep); text-decoration: none;
   background: var(--paper-lit);
@@ -549,8 +550,8 @@ canvas { display: block; cursor: crosshair; }
 .dl-pill:hover { background: #fff; border-color: var(--brass); }
 .dl-pill[aria-disabled="true"] { opacity: 0.45; pointer-events: none; }
 .dl-pill .dl-ico { font-weight: 700; color: var(--brass); }
-.dl-pill .dl-dir { color: var(--ink-faint); }
-.dl-pill .dl-fn  { color: var(--ink-soft); margin-left: auto; font-size: 10px; }
+.dl-pill .dl-dir { color: var(--ink-faint); min-width: 0; overflow-wrap: anywhere; }
+.dl-pill .dl-fn  { color: var(--ink-soft); margin-left: auto; font-size: 10px; min-width: 0; overflow-wrap: anywhere; }
 .pc-foot { display: flex; gap: 14px; margin-top: 2px; }
 .pc-foot button {
   font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.06em;
