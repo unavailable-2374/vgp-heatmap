@@ -17,6 +17,25 @@ Two heatmap pages:
   (directional; each diamond splits into two triangles, one per direction,
   when zoomed in).
 
+## Downloading the raw PAFs
+
+The viewer links straight to the public **GenomeArk** bucket
+(`s3://genomeark/working/staging/all_vs_all_alignments/FastGA/cmaes/`), where each
+ordered pair is stored as `{GCA_query}_vs_{GCA_target}.paf.gz` (581 × 580 =
+336,980 directional files).
+
+* **One pair** — click any cell. A card shows two one-click download links, one
+  per alignment direction (A→B and B→A).
+* **A block** — `Shift`-drag a clade/region, then **Download…**. The panel
+  generates a `urls.txt` manifest and copy-paste `wget` / `curl` / `s5cmd`
+  commands scoped to that selection.
+* **Everything** — the **Download → Full dataset** tab gives `aws s3 sync` /
+  `s5cmd` commands (`--no-sign-request`; the set is ~1.5 TB).
+
+No AWS account is needed (public bucket). The upload is still in progress, so a
+few pairs may 404; every generated command skips missing files and is safe to
+re-run — `aws s3 sync` picks up newly added pairs each time.
+
 ## Method
 
 Computed from 336,980 directional PAF files of all-vs-all alignments. For each

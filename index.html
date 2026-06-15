@@ -477,6 +477,167 @@ canvas { display: block; cursor: crosshair; }
   .ready .brand, .ready .plates, .ready .controls, .ready #canvas-wrap,
   .ready #help-hint, .ready #colorbar, .ready #legend, .load-spin { animation: none; }
 }
+
+/* ───────────────────────── Download — header button ───────────────────────── */
+#dl-open-btn {
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 10.5px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--green-deep);
+  background: linear-gradient(180deg, var(--brass-lit), var(--brass));
+  border: 1px solid var(--brass);
+  border-radius: 2px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+#dl-open-btn:hover { filter: brightness(1.08); }
+#dl-open-btn .dl-ico { font-weight: 700; margin-right: 5px; }
+
+/* ───────────────── Pair card — instant single-pair download ───────────────── */
+#pair-card {
+  position: absolute;
+  top: 16px; right: 18px;
+  z-index: 70;
+  display: none;
+  flex-direction: column;
+  gap: 9px;
+  padding: 12px 14px 13px;
+  width: 304px;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-top: 2px solid var(--brass);
+  border-radius: 3px;
+  box-shadow: 0 10px 30px -10px rgba(36, 28, 16, 0.42);
+  font-family: var(--serif);
+}
+.pc-head {
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 7px;
+}
+.pc-close {
+  font-family: var(--mono); font-size: 13px; line-height: 1;
+  color: var(--ink-faint); background: none; border: none; cursor: pointer;
+  padding: 0 2px;
+}
+.pc-close:hover { color: var(--ink); }
+.pc-sp { display: flex; align-items: baseline; gap: 7px; font-size: 12.5px; color: var(--ink); }
+.pc-sp .pc-role { font-family: var(--mono); font-size: 9px; color: var(--ink-faint); width: 12px; flex-shrink: 0; }
+.pc-sp .pc-dot  { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; align-self: center; box-shadow: 0 0 0 1px rgba(36,28,16,0.14); }
+.pc-sp .pc-name { font-style: italic; }
+.pc-links { display: flex; flex-direction: column; gap: 6px; margin-top: 1px; }
+.dl-pill {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 11px;
+  color: var(--green-deep); text-decoration: none;
+  background: var(--paper-lit);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 7px 10px;
+  transition: background 0.14s, border-color 0.14s;
+}
+.dl-pill:hover { background: #fff; border-color: var(--brass); }
+.dl-pill[aria-disabled="true"] { opacity: 0.45; pointer-events: none; }
+.dl-pill .dl-ico { font-weight: 700; color: var(--brass); }
+.dl-pill .dl-dir { color: var(--ink-faint); }
+.dl-pill .dl-fn  { color: var(--ink-soft); margin-left: auto; font-size: 10px; }
+.pc-foot { display: flex; gap: 14px; margin-top: 2px; }
+.pc-foot button {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.06em;
+  color: var(--ink-soft); background: none; border: none; cursor: pointer;
+  padding: 0; text-decoration: underline; text-underline-offset: 2px;
+}
+.pc-foot button:hover { color: var(--ink); }
+
+/* ───────────────────────── Download modal ───────────────────────── */
+#dl-backdrop {
+  position: fixed; inset: 0;
+  z-index: 2000;
+  display: none;
+  background: rgba(28, 22, 12, 0.46);
+  backdrop-filter: blur(1.5px);
+}
+#dl-backdrop.open { display: flex; align-items: center; justify-content: center; }
+#dl-modal {
+  width: min(680px, 92vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--brass);
+  border-radius: 4px;
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.5);
+  font-family: var(--serif);
+  color: var(--ink);
+}
+.dlm-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--rule);
+}
+.dlm-title { font-size: 19px; font-weight: 600; letter-spacing: 0.01em; }
+.dlm-sub { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-faint); margin-top: 4px; }
+.dlm-close { font-size: 18px; color: var(--ink-faint); background: none; border: none; cursor: pointer; line-height: 1; }
+.dlm-close:hover { color: var(--ink); }
+.dlm-tabs { display: flex; gap: 4px; padding: 14px 22px 0; }
+.dlm-tab {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.05em;
+  color: var(--ink-soft); background: var(--paper-lit);
+  border: 1px solid var(--rule); border-bottom: none;
+  border-radius: 3px 3px 0 0; padding: 8px 15px; cursor: pointer;
+}
+.dlm-tab.active { color: var(--green-deep); background: var(--card); border-color: var(--brass); font-weight: 600; }
+.dlm-body { padding: 18px 22px 20px; }
+.dlm-pane { display: none; }
+.dlm-pane.active { display: block; }
+.dlm-line { font-size: 13px; line-height: 1.6; color: var(--ink-soft); margin-bottom: 12px; }
+.dlm-line b { color: var(--ink); font-weight: 600; }
+.dlm-count { font-family: var(--mono); color: var(--brass); font-weight: 600; }
+.dlm-note {
+  font-family: var(--serif); font-style: italic; font-size: 12px; line-height: 1.55;
+  color: var(--ink-soft);
+  background: rgba(154, 123, 63, 0.09);
+  border-left: 2px solid var(--brass);
+  border-radius: 0 2px 2px 0;
+  padding: 9px 12px; margin: 4px 0 14px;
+}
+.dlm-cmd-label {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--ink-faint); margin: 14px 0 6px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.dlm-copy {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-soft); background: none; border: 1px solid var(--rule); border-radius: 2px;
+  padding: 2px 8px; cursor: pointer;
+}
+.dlm-copy:hover { background: var(--ink); color: var(--card); border-color: var(--ink); }
+.dlm-code {
+  font-family: var(--mono); font-size: 11.5px; line-height: 1.62;
+  color: #e9e1cb; background: rgba(36, 28, 16, 0.96);
+  border-radius: 3px; padding: 11px 13px;
+  white-space: pre; overflow-x: auto;
+}
+.dlm-code .c { color: #9fae93; }
+.dlm-btn-row { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 16px; }
+.dlm-dl {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em;
+  color: var(--green-deep);
+  background: linear-gradient(180deg, var(--brass-lit), var(--brass));
+  border: 1px solid var(--brass); border-radius: 2px;
+  padding: 9px 14px; cursor: pointer;
+}
+.dlm-dl:hover { filter: brightness(1.07); }
+.dlm-dl .dl-ico { font-weight: 700; margin-right: 6px; }
+.dlm-empty { font-style: italic; color: var(--ink-faint); font-size: 13px; padding: 8px 0; }
 </style>
 </head>
 <body>
@@ -520,6 +681,7 @@ canvas { display: block; cursor: crosshair; }
   <div class="controls">
     <span id="zoom-label">1.0&times;</span>
     <span class="ctrl-rule"></span>
+    <button id="dl-open-btn" onclick="openDownload()"><span class="dl-ico">&#8595;</span>Download</button>
     <button id="reset-btn" onclick="resetView()">Reset view</button>
   </div>
 </header>
@@ -538,10 +700,49 @@ canvas { display: block; cursor: crosshair; }
     <span>Drag to <b>pan</b></span>
     <span class="hh-sep">&middot;</span>
     <span><kbd>Shift</kbd> + drag to <b>select</b></span>
+    <span class="hh-sep">&middot;</span>
+    <span>Click a cell to <b>download</b></span>
   </div>
   <div id="selection-info">
     <span id="sel-text"></span>
+    <button onclick="openDownload()">Download…</button>
     <button onclick="clearSelection()">Clear</button>
+  </div>
+
+  <!-- Instant single-pair download card (appears on cell click) -->
+  <div id="pair-card">
+    <div class="pc-head">
+      <span>Pairwise alignment</span>
+      <button class="pc-close" onclick="clearPair()" title="Close">&times;</button>
+    </div>
+    <div class="pc-sp"><span class="pc-role">A</span><span class="pc-dot" id="pc-dot-a"></span><span class="pc-name" id="pc-name-a"></span></div>
+    <div class="pc-sp"><span class="pc-role">B</span><span class="pc-dot" id="pc-dot-b"></span><span class="pc-name" id="pc-name-b"></span></div>
+    <div class="pc-links" id="pc-links"></div>
+    <div class="pc-foot">
+      <button onclick="copyPairUris(event)">Copy s3:// URIs</button>
+      <button onclick="openDownload()">Bulk / commands &rsaquo;</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk download modal -->
+<div id="dl-backdrop" onclick="if(event.target===this)closeDownload()">
+  <div id="dl-modal" role="dialog" aria-label="Download alignment data">
+    <div class="dlm-head">
+      <div>
+        <div class="dlm-title">Download alignment PAFs</div>
+        <div class="dlm-sub">GenomeArk &middot; FastGA all-vs-all &middot; cmaes</div>
+      </div>
+      <button class="dlm-close" onclick="closeDownload()" title="Close">&times;</button>
+    </div>
+    <div class="dlm-tabs">
+      <button class="dlm-tab" id="dlt-sel"  onclick="setDlScope('sel')">Selection</button>
+      <button class="dlm-tab" id="dlt-full" onclick="setDlScope('full')">Full dataset</button>
+    </div>
+    <div class="dlm-body">
+      <div class="dlm-pane" id="dlp-sel"></div>
+      <div class="dlm-pane" id="dlp-full"></div>
+    </div>
   </div>
 </div>
 
@@ -1160,6 +1361,7 @@ function setupEvents() {
     if (e.shiftKey) {
       isSelecting = true;
       selCanvasStart = { x: cx, y: cy };
+      clearPair();
       e.preventDefault();
     } else {
       isPanning = true;
@@ -1191,8 +1393,17 @@ function setupEvents() {
     }
   });
 
-  window.addEventListener('mouseup', () => {
-    if (isPanning) { isPanning = false; canvas.style.cursor = 'crosshair'; }
+  window.addEventListener('mouseup', (e) => {
+    if (isPanning) {
+      isPanning = false;
+      canvas.style.cursor = 'crosshair';
+      // A press with negligible movement is a click → pin that pair for download.
+      if (panStart && Math.hypot(e.clientX - panStart.x, e.clientY - panStart.y) < 4) {
+        const rect = canvas.getBoundingClientRect();
+        const cell = canvasToCell(e.clientX - rect.left, e.clientY - rect.top);
+        if (cell && cell.row !== cell.col) pinPair(cell.row, cell.col);
+      }
+    }
     if (isSelecting) { isSelecting = false; }
   });
 
@@ -1220,7 +1431,12 @@ function setupEvents() {
 
   // Keyboard: number keys 1/2 switch pages
   window.addEventListener('keydown', (e) => {
-    if (e.key === '1') switchPage(0);
+    if (e.key === 'Escape') {
+      const bd = document.getElementById('dl-backdrop');
+      if (bd.classList.contains('open')) { closeDownload(); return; }
+      clearPair();
+    }
+    else if (e.key === '1') switchPage(0);
     else if (e.key === '2') switchPage(1);
   });
 }
@@ -1419,6 +1635,204 @@ async function init() {
   document.getElementById('loading').style.display = 'none';
   document.body.classList.add('ready');
   window.addEventListener('resize', resize);
+}
+
+// ═══════════════════════════════════════════════════════════
+// Download — per-pair links + bulk manifest / command generator
+// ═══════════════════════════════════════════════════════════
+// GenomeArk is a public AWS Open-Data bucket. PAF files are directional and
+// named  {GCA_query}_vs_{GCA_target}.paf.gz . Every ordered pair exists, so a
+// species pair (A,B) maps to two files: A_vs_B (A as query) and B_vs_A.
+//
+// The bucket sends no CORS headers, so the browser can neither fetch+zip the
+// files nor reliably probe 404s. We therefore (a) hand out direct download
+// links — plain navigations need no CORS — and (b) generate a URL manifest plus
+// copy-paste aws/s5cmd/wget commands for anything bulk.
+const S3_PREFIX = 'working/staging/all_vs_all_alignments/FastGA/cmaes/';
+const S3_HTTPS  = 'https://genomeark.s3.amazonaws.com/' + S3_PREFIX;
+const S3_URI    = 's3://genomeark/' + S3_PREFIX;
+const TOTAL_FILES = 336980;
+
+let pinnedPair = null;   // {row, col}  (row < col)
+let dlScope = 'sel';
+let _selUrls = '', _selS5 = '';   // last-generated selection manifests
+
+// GCA accession for a species index (index 0 of speciesToAcc; tolerate the
+// 7 leafOrder names that carry a trailing underscore).
+function accFor(idx) {
+  const name = DATA.leafOrder[idx];
+  const e = DATA.speciesToAcc[name] || DATA.speciesToAcc[name.replace(/_+$/, '')];
+  return (e && e[0]) ? e[0] : null;
+}
+function pafName(qIdx, tIdx) {
+  const q = accFor(qIdx), t = accFor(tIdx);
+  return (q && t) ? `${q}_vs_${t}.paf.gz` : null;
+}
+function prettyName(idx) { return DATA.leafOrder[idx].replace(/_+$/, '').replace(/_/g, ' '); }
+
+// ── Instant single-pair card ──
+function pinPair(row, col) {
+  clearSelection();
+  pinnedPair = { row: Math.min(row, col), col: Math.max(row, col) };
+  renderPairCard();
+}
+function clearPair() {
+  pinnedPair = null;
+  document.getElementById('pair-card').style.display = 'none';
+}
+
+function renderPairCard() {
+  const { row, col } = pinnedPair;
+  const card = document.getElementById('pair-card');
+  document.getElementById('pc-name-a').textContent = prettyName(row);
+  document.getElementById('pc-name-b').textContent = prettyName(col);
+  document.getElementById('pc-dot-a').style.background = cladeColorForIndex(row);
+  document.getElementById('pc-dot-b').style.background = cladeColorForIndex(col);
+
+  const f_ab = pafName(row, col);   // A as query, B as target
+  const f_ba = pafName(col, row);   // B as query, A as target
+  const links = document.getElementById('pc-links');
+  const aName = prettyName(row), bName = prettyName(col);
+  const pill = (f, dir) => f
+    ? `<a class="dl-pill" href="${S3_HTTPS}${f}" download="${f}">
+         <span class="dl-ico">&#8595;</span><span class="dl-dir">${dir}</span>
+         <span class="dl-fn">${f.replace('.paf.gz','')}</span></a>`
+    : `<span class="dl-pill" aria-disabled="true"><span class="dl-ico">&#8595;</span>
+         <span class="dl-dir">${dir}</span><span class="dl-fn">accession n/a</span></span>`;
+  links.innerHTML = pill(f_ab, `${aName} → ${bName}`) + pill(f_ba, `${bName} → ${aName}`);
+  card.style.display = 'flex';
+}
+
+function copyPairUris(ev) {
+  if (!pinnedPair) return;
+  const { row, col } = pinnedPair;
+  const lines = [pafName(row, col), pafName(col, row)].filter(Boolean).map(f => S3_URI + f);
+  copyText(lines.join('\n'), ev && ev.target);
+}
+
+// ── Selection → directional file list ──
+// Every distinct ordered pair (a,b), a≠b, with one species in the selected
+// rows and the other in the selected cols. Set-dedups overlap between triangles.
+function selectionFiles() {
+  if (!selectedRegion) return [];
+  const { r1, r2, c1, c2 } = selectedRegion;
+  const files = new Set();
+  for (let i = r1; i <= r2; i++) {
+    for (let j = c1; j <= c2; j++) {
+      if (i === j) continue;
+      const a = pafName(i, j), b = pafName(j, i);
+      if (a) files.add(a);
+      if (b) files.add(b);
+    }
+  }
+  return [...files].sort();
+}
+
+// ── Modal ──
+function openDownload() {
+  setDlScope(selectedRegion ? 'sel' : (dlScope || 'sel'));
+  renderFullPane();
+  document.getElementById('dl-backdrop').classList.add('open');
+}
+function closeDownload() {
+  document.getElementById('dl-backdrop').classList.remove('open');
+}
+function setDlScope(scope) {
+  dlScope = scope;
+  document.getElementById('dlt-sel').classList.toggle('active', scope === 'sel');
+  document.getElementById('dlt-full').classList.toggle('active', scope === 'full');
+  document.getElementById('dlp-sel').classList.toggle('active', scope === 'sel');
+  document.getElementById('dlp-full').classList.toggle('active', scope === 'full');
+  if (scope === 'sel') renderSelPane();
+  else renderFullPane();
+}
+
+function cmdBlock(label, code) {
+  const id = 'cb-' + Math.abs(hashStr(label)).toString(36);
+  return `<div class="dlm-cmd-label">${label}
+            <button class="dlm-copy" onclick="copyCodeBlock('${id}', this)">Copy</button></div>
+          <div class="dlm-code" id="${id}">${code}</div>`;
+}
+function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; }
+
+function renderSelPane() {
+  const pane = document.getElementById('dlp-sel');
+  if (!selectedRegion) {
+    pane.innerHTML = `<div class="dlm-empty">No selection yet. Hold <b>Shift</b> and drag across the
+      heatmap to box a clade or block, then reopen this panel.<br><br>
+      To grab a single pair, just <b>click</b> a cell — direct download links appear instantly.</div>`;
+    return;
+  }
+  const files = selectionFiles();
+  const n = files.length;
+  _selUrls = files.map(f => S3_HTTPS + f).join('\n');
+  _selS5   = files.map(f => `cp ${S3_URI}${f} cmaes/`).join('\n');
+
+  const wget = `<span class="c"># after saving urls.txt from the button below:</span>\n`
+    + `mkdir -p cmaes && wget -nc -P cmaes/ -i urls.txt`;
+  const curlp = `<span class="c"># parallel, 8 at a time, skips files that 404:</span>\n`
+    + `xargs -P 8 -n 1 curl -sfL --create-dirs -O --output-dir cmaes/ < urls.txt`;
+  const s5 = `<span class="c"># fastest — save cmaes.s5cmd.txt below, then:</span>\n`
+    + `s5cmd --no-sign-request run cmaes.s5cmd.txt`;
+
+  pane.innerHTML =
+    `<div class="dlm-line">Selected block resolves to <span class="dlm-count">${n.toLocaleString()}</span>
+       directional PAF file${n === 1 ? '' : 's'}
+       (${prettyName(selectedRegion.r1)}… × ${prettyName(selectedRegion.c1)}…).</div>`
+    + `<div class="dlm-note">GenomeArk is public — no AWS login needed. Upload is still in progress,
+       so a few pairs may not exist yet; every command below skips missing files and can be
+       re-run later to pick up new ones.</div>`
+    + cmdBlock('wget', wget)
+    + cmdBlock('curl (parallel)', curlp)
+    + cmdBlock('s5cmd (parallel)', s5)
+    + `<div class="dlm-btn-row">
+         <button class="dlm-dl" onclick='downloadText("urls.txt", _selUrls)'>
+           <span class="dl-ico">&#8595;</span>urls.txt &middot; ${n.toLocaleString()} URLs</button>
+         <button class="dlm-dl" onclick='downloadText("cmaes.s5cmd.txt", _selS5)'>
+           <span class="dl-ico">&#8595;</span>s5cmd manifest</button>
+       </div>`;
+}
+
+function renderFullPane() {
+  const pane = document.getElementById('dlp-full');
+  const sync = `<span class="c"># resumable &amp; re-runnable — best while upload is in progress.</span>\n`
+    + `<span class="c"># re-run any time to fetch newly added pairs.</span>\n`
+    + `aws s3 sync --no-sign-request \\\n  ${S3_URI} cmaes/`;
+  const s5 = `<span class="c"># parallel; much faster for hundreds of thousands of files.</span>\n`
+    + `s5cmd --no-sign-request cp '${S3_URI}*' cmaes/`;
+  const cp = `<span class="c"># one-shot recursive copy.</span>\n`
+    + `aws s3 cp --no-sign-request --recursive \\\n  ${S3_URI} cmaes/`;
+  pane.innerHTML =
+    `<div class="dlm-line">The complete all-vs-all set is
+       <span class="dlm-count">${TOTAL_FILES.toLocaleString()}</span> directional PAFs
+       (581 genomes, both directions) — on the order of <b>~1.5 TB</b>. Make sure you have room.</div>`
+    + `<div class="dlm-note">Upload is ongoing. Use <b>aws s3 sync</b> and re-run it periodically:
+       it only fetches files you don't already have, so it naturally completes as more pairs land.</div>`
+    + cmdBlock('aws s3 sync  (recommended)', sync)
+    + cmdBlock('s5cmd (fastest)', s5)
+    + cmdBlock('aws s3 cp', cp);
+}
+
+// ── Clipboard / blob helpers ──
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(() => flashBtn(btn, 'Copied')).catch(() => {});
+}
+function copyCodeBlock(id, btn) {
+  copyText(document.getElementById(id).textContent, btn);
+}
+function flashBtn(btn, msg) {
+  if (!btn) return;
+  const old = btn.textContent;
+  btn.textContent = msg;
+  setTimeout(() => { btn.textContent = old; }, 1100);
+}
+function downloadText(filename, text) {
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 init();
