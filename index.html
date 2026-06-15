@@ -1637,12 +1637,16 @@ let pinnedPair = null;   // {row, col}  (row < col)
 let dlScope = 'sel';
 let _selUrls = '', _selS5 = '';   // last-generated selection manifests
 
-// GCA accession for a species index (index 0 of speciesToAcc; tolerate the
-// 7 leafOrder names that carry a trailing underscore).
+// Bucket accession for a species index. GenomeArk names every PAF by the
+// RefSeq (GCF) accession when one exists for that genome, falling back to the
+// GenBank (GCA) accession otherwise — verified against all 581 genomes in the
+// bucket. speciesToAcc holds [GCA, GCF] (GCF may equal GCA when none exists).
+// (Tolerate the 7 leafOrder names that carry a trailing underscore.)
 function accFor(idx) {
   const name = DATA.leafOrder[idx];
   const e = DATA.speciesToAcc[name] || DATA.speciesToAcc[name.replace(/_+$/, '')];
-  return (e && e[0]) ? e[0] : null;
+  if (!e || !e[0]) return null;
+  return (e[1] && e[1] !== e[0] && e[1].startsWith('GCF')) ? e[1] : e[0];
 }
 function pafName(qIdx, tIdx) {
   const q = accFor(qIdx), t = accFor(tIdx);
