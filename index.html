@@ -289,8 +289,11 @@ canvas { display: block; cursor: crosshair; }
 }
 .legend-items {
   display: flex;
-  flex-wrap: wrap;
-  gap: 7px 16px;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 6px;
+  max-height: 56vh;
+  overflow-y: auto;
   font-family: var(--serif);
   font-size: 12px;
   color: var(--ink-soft);
@@ -307,8 +310,7 @@ canvas { display: block; cursor: crosshair; }
 /* Colorbar */
 #colorbar {
   position: absolute;
-  right: 18px; top: 50%;
-  transform: translateY(-50%);
+  right: 18px; bottom: 18px;
   padding: 13px 13px 10px;
 }
 .cb-head {
@@ -463,8 +465,8 @@ canvas { display: block; cursor: crosshair; }
 @keyframes inUp    { from { opacity: 0; transform: translateY( 12px); } to { opacity: 1; transform: none; } }
 @keyframes develop { from { opacity: 0; } to { opacity: 1; } }
 @keyframes cbIn {
-  from { opacity: 0; transform: translateY(-50%) translateX(14px); }
-  to   { opacity: 1; transform: translateY(-50%); }
+  from { opacity: 0; transform: translateX(14px); }
+  to   { opacity: 1; transform: none; }
 }
 .ready .brand    { animation: inLeft  0.7s 0.05s both cubic-bezier(.2,.7,.2,1); }
 .ready .plates   { animation: inDown  0.6s 0.16s both cubic-bezier(.2,.7,.2,1); }
