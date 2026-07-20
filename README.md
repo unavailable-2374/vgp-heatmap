@@ -17,20 +17,25 @@ Two heatmap pages:
   (directional; each diamond splits into two triangles, one per direction,
   when zoomed in).
 
-## Downloading the raw PAFs
+## Downloading data
 
 The viewer links straight to the public **GenomeArk** bucket
 (`s3://genomeark/working/staging/all_vs_all_alignments/FastGA/cmaes/`), where each
-ordered pair is stored as `{GCA_query}_vs_{GCA_target}.paf.gz` (581 × 580 =
-336,980 directional files).
+ordered pair is stored as `{query_accession}_vs_{target_accession}.paf.gz`
+(RefSeq GCF when available, otherwise GenBank GCA; 581 × 580 = 336,980
+directional files).
 
-* **One pair** — click any cell. A card shows two one-click download links, one
-  per alignment direction (A→B and B→A).
-* **A block** — `Shift`-drag a clade/region, then **Download…**. The panel
-  generates a `urls.txt` manifest and copy-paste `wget` / `curl` / `s5cmd`
-  commands scoped to that selection.
-* **Everything** — the **Download → Full dataset** tab gives `aws s3 sync` /
-  `s5cmd` commands (`--no-sign-request`; the set is ~1.5 TB).
+The **Data portal** provides three workflows:
+
+* **Pairwise PAF** — search for two species or GCA/GCF accessions directly. The
+  two directional files (A→B and B→A) are shown side by side. Clicking a heatmap
+  cell still pre-fills the same pair.
+* **Genome files** — search the assembly catalogue for GFF annotations and
+  reference FASTA files. Their accession mappings are present; download buttons
+  remain in an explicit “S3 pending” state until the public base URLs are added.
+* **Bulk & CLI** — export a manifest for a `Shift`-drag heatmap selection, or
+  copy `aws s3 sync` / `s5cmd` commands for the complete PAF collection
+  (`--no-sign-request`; the set is ~1.5 TB).
 
 No AWS account is needed (public bucket). The upload is still in progress, so a
 few pairs may 404; every generated command skips missing files and is safe to
@@ -55,8 +60,11 @@ This follows the method of <https://github.com/ekg/vgp_heatmap>.
 
 | file | description |
 |------|-------------|
-| `index.html` | self-contained viewer (loads the JSON via `fetch()`) |
+| `index.html` | heatmap viewer and data-portal markup |
 | `heatmap_data.json` | aggregated similarity + coverage matrices for all 581 genomes |
+| `downloads.css` | data-portal layout and responsive styling |
+| `downloads.js` | pair lookup, resource search/filtering, and bulk manifests |
+| `download_catalog.json` | PAF/GFF/FA accession and file mapping; S3 base URLs are configured here |
 
 ## Run locally
 

@@ -625,6 +625,7 @@ canvas { display: block; cursor: crosshair; }
 .dlm-dl .dl-ico { font-weight: 700; margin-right: 6px; }
 .dlm-empty { font-style: italic; color: var(--text-faint); font-size: 13px; padding: 8px 0; }
 </style>
+<link rel="stylesheet" href="downloads.css">
 </head>
 <body>
 <div id="loading">
@@ -665,7 +666,7 @@ canvas { display: block; cursor: crosshair; }
   <div class="controls">
     <span id="zoom-label">1.0&times;</span>
     <span class="ctrl-rule"></span>
-    <button id="dl-open-btn" onclick="openDownload()"><span class="dl-ico">&#8595;</span>Download</button>
+    <button id="dl-open-btn" onclick="openDownload()"><span class="dl-ico">&#8595;</span>Data portal</button>
     <button id="reset-btn" onclick="resetView()">Reset view</button>
   </div>
 </header>
@@ -685,7 +686,7 @@ canvas { display: block; cursor: crosshair; }
   </div>
   <div id="selection-info">
     <span id="sel-text"></span>
-    <button onclick="openDownload()">Download…</button>
+    <button onclick="openDownload('bulk')">Download…</button>
     <button onclick="clearSelection()">Clear</button>
   </div>
 
@@ -700,28 +701,149 @@ canvas { display: block; cursor: crosshair; }
     <div class="pc-links" id="pc-links"></div>
     <div class="pc-foot">
       <button onclick="copyPairUris(event)">Copy s3:// URIs</button>
-      <button onclick="openDownload()">Bulk / commands &rsaquo;</button>
+      <button onclick="openDownload('pair')">Open data portal &rsaquo;</button>
     </div>
   </div>
 </div>
 
-<!-- Bulk download modal -->
+<!-- Unified data download portal -->
 <div id="dl-backdrop" onclick="if(event.target===this)closeDownload()">
-  <div id="dl-modal" role="dialog" aria-label="Download alignment data">
-    <div class="dlm-head">
-      <div>
-        <div class="dlm-title">Download alignment PAFs</div>
-        <div class="dlm-sub">GenomeArk &middot; FastGA all-vs-all &middot; cmaes</div>
+  <div id="dl-modal" class="data-portal" role="dialog" aria-modal="true" aria-label="VGP data download portal">
+    <div class="portal-head">
+      <div class="portal-heading">
+        <span class="portal-kicker">VGP DATA PORTAL</span>
+        <div class="dlm-title">Download genomic resources</div>
+        <div class="dlm-sub">Pairwise alignments &middot; genome annotations &middot; reference sequences</div>
       </div>
-      <button class="dlm-close" onclick="closeDownload()" title="Close">&times;</button>
+      <div class="portal-statuses" aria-label="Data source status">
+        <span class="source-status ready"><i></i>PAF online</span>
+        <span class="source-status pending" id="gff-source-status"><i></i>GFF awaiting S3</span>
+        <span class="source-status pending" id="fa-source-status"><i></i>FA awaiting S3</span>
+      </div>
+      <button class="dlm-close" onclick="closeDownload()" title="Close" aria-label="Close">&times;</button>
     </div>
-    <div class="dlm-tabs">
-      <button class="dlm-tab" id="dlt-sel"  onclick="setDlScope('sel')">Selection</button>
-      <button class="dlm-tab" id="dlt-full" onclick="setDlScope('full')">Full dataset</button>
+    <div class="portal-nav" role="tablist">
+      <button class="portal-tab active" id="dlt-pair" role="tab" onclick="setDlScope('pair')">
+        <span class="portal-tab-no">01</span>
+        <span><b>Pairwise PAF</b><small>按两个物种查找比对</small></span>
+      </button>
+      <button class="portal-tab" id="dlt-genome" role="tab" onclick="setDlScope('genome')">
+        <span class="portal-tab-no">02</span>
+        <span><b>Genome files</b><small>浏览 GFF 与 FA</small></span>
+      </button>
+      <button class="portal-tab" id="dlt-bulk" role="tab" onclick="setDlScope('bulk')">
+        <span class="portal-tab-no">03</span>
+        <span><b>Bulk &amp; CLI</b><small>批量下载与命令行</small></span>
+      </button>
     </div>
-    <div class="dlm-body">
-      <div class="dlm-pane" id="dlp-sel"></div>
-      <div class="dlm-pane" id="dlp-full"></div>
+
+    <div class="portal-body">
+      <section class="portal-pane active" id="dlp-pair" role="tabpanel">
+        <div class="pane-intro">
+          <div>
+            <span class="section-kicker">DIRECT PAIR LOOKUP</span>
+            <h2>Choose two genomes</h2>
+            <p>无需在 581 × 581 热图中寻找格子。输入物种名或 GCA/GCF 登录号，即可生成两个方向的真实 PAF 下载链接。</p>
+          </div>
+          <button class="use-heatmap-pair" id="use-pinned-pair" onclick="usePinnedPair()" disabled>
+            Use selected heatmap pair
+          </button>
+        </div>
+
+        <div class="pair-builder">
+          <label class="genome-picker">
+            <span class="picker-label"><b>A</b> QUERY GENOME</span>
+            <input id="pair-a-input" list="pair-a-list" autocomplete="off"
+                   placeholder="Species name or accession">
+            <datalist id="pair-a-list"></datalist>
+            <small id="pair-a-meta">Select the first assembly</small>
+          </label>
+          <button class="swap-pair" onclick="swapPairGenomes()" title="Swap A and B" aria-label="Swap genomes">
+            <span>&rarr;</span><span>&larr;</span>
+          </button>
+          <label class="genome-picker">
+            <span class="picker-label"><b>B</b> TARGET GENOME</span>
+            <input id="pair-b-input" list="pair-b-list" autocomplete="off"
+                   placeholder="Species name or accession">
+            <datalist id="pair-b-list"></datalist>
+            <small id="pair-b-meta">Select the second assembly</small>
+          </label>
+        </div>
+
+        <div class="pair-result empty" id="pair-result">
+          <div class="pair-empty-mark">
+            <span>A</span><i></i><span>B</span>
+          </div>
+          <div>
+            <b>Select two different genomes</b>
+            <p>Both directional files will appear here: A &rarr; B and B &rarr; A.</p>
+          </div>
+        </div>
+
+        <div class="selection-shortcut" id="selection-shortcut">
+          <div>
+            <span class="selection-icon">&#9633;</span>
+            <p><b>Need a block of alignments?</b><small>Shift-drag on the heatmap, then export that exact region here.</small></p>
+          </div>
+          <button onclick="setDlScope('bulk')">Open selection manifest &rarr;</button>
+        </div>
+      </section>
+
+      <section class="portal-pane" id="dlp-genome" role="tabpanel">
+        <div class="pane-intro genome-intro">
+          <div>
+            <span class="section-kicker">ASSEMBLY CATALOGUE</span>
+            <h2>Genome files</h2>
+            <p>按物种、常用名或登录号浏览注释与参考序列。S3 地址接入后，现有文件映射将自动变为下载按钮。</p>
+          </div>
+          <div class="catalog-count"><strong id="catalog-species-count">581</strong><span>assemblies</span></div>
+        </div>
+        <div class="resource-toolbar">
+          <label class="resource-search">
+            <span aria-hidden="true">&#8981;</span>
+            <input id="resource-search" type="search" placeholder="Search species, common name, GCA or GCF…">
+            <kbd>&#8984; K</kbd>
+          </label>
+          <div class="resource-filters" role="group" aria-label="File type">
+            <button class="active" data-resource-filter="all">All <span id="resource-count-all">581</span></button>
+            <button data-resource-filter="gff">GFF <span id="resource-count-gff">508</span></button>
+            <button data-resource-filter="fa">FA <span id="resource-count-fa">581</span></button>
+          </div>
+        </div>
+        <div class="resource-table-head">
+          <span>Organism</span><span>Assembly</span><span>Clade</span><span>Data assets</span>
+        </div>
+        <div class="resource-list" id="resource-list"></div>
+        <div class="resource-empty" id="resource-empty">
+          <b>No matching assembly</b><span>Try a different name, accession, or file type.</span>
+        </div>
+        <div class="resource-footer">
+          <span id="resource-page-summary"></span>
+          <div id="resource-pagination"></div>
+        </div>
+      </section>
+
+      <section class="portal-pane" id="dlp-bulk" role="tabpanel">
+        <div class="pane-intro">
+          <div>
+            <span class="section-kicker">REPRODUCIBLE DOWNLOADS</span>
+            <h2>Bulk &amp; command line</h2>
+            <p>针对热图选区或完整数据集生成可恢复、可重复运行的下载命令。</p>
+          </div>
+        </div>
+        <div class="bulk-scope">
+          <button class="active" id="bulk-tab-selection" onclick="setBulkScope('selection')">
+            Heatmap selection <span id="bulk-selection-count">0 files</span>
+          </button>
+          <button id="bulk-tab-full" onclick="setBulkScope('full')">
+            Full PAF dataset <span>336,980 files</span>
+          </button>
+          <button id="bulk-tab-resources" onclick="setBulkScope('resources')">
+            GFF + FA <span>Awaiting S3</span>
+          </button>
+        </div>
+        <div id="bulk-content"></div>
+      </section>
     </div>
   </div>
 </div>
@@ -1597,6 +1719,7 @@ async function init() {
     showError('heatmap_data.json is missing required fields (pages / n).');
     return;
   }
+  if (typeof onHeatmapDataReady === 'function') onHeatmapDataReady();
 
   document.getElementById('load-text').textContent = 'Rendering heatmap…';
   await new Promise(r => setTimeout(r, 30));
@@ -1621,7 +1744,8 @@ async function init() {
 // Download — per-pair links + bulk manifest / command generator
 // ═══════════════════════════════════════════════════════════
 // GenomeArk is a public AWS Open-Data bucket. PAF files are directional and
-// named  {GCA_query}_vs_{GCA_target}.paf.gz . Every ordered pair exists, so a
+// named  {query_accession}_vs_{target_accession}.paf.gz . Every ordered pair
+// exists, so a
 // species pair (A,B) maps to two files: A_vs_B (A as query) and B_vs_A.
 //
 // The bucket sends no CORS headers, so the browser can neither fetch+zip the
@@ -1634,8 +1758,6 @@ const S3_URI    = 's3://genomeark/' + S3_PREFIX;
 const TOTAL_FILES = 336980;
 
 let pinnedPair = null;   // {row, col}  (row < col)
-let dlScope = 'sel';
-let _selUrls = '', _selS5 = '';   // last-generated selection manifests
 
 // Bucket accession for a species index. GenomeArk names every PAF by the
 // RefSeq (GCF) accession when one exists for that genome, falling back to the
@@ -1712,97 +1834,11 @@ function selectionFiles() {
   return [...files].sort();
 }
 
-// ── Modal ──
-function openDownload() {
-  setDlScope(selectedRegion ? 'sel' : (dlScope || 'sel'));
-  renderFullPane();
-  document.getElementById('dl-backdrop').classList.add('open');
-}
-function closeDownload() {
-  document.getElementById('dl-backdrop').classList.remove('open');
-}
-function setDlScope(scope) {
-  dlScope = scope;
-  document.getElementById('dlt-sel').classList.toggle('active', scope === 'sel');
-  document.getElementById('dlt-full').classList.toggle('active', scope === 'full');
-  document.getElementById('dlp-sel').classList.toggle('active', scope === 'sel');
-  document.getElementById('dlp-full').classList.toggle('active', scope === 'full');
-  if (scope === 'sel') renderSelPane();
-  else renderFullPane();
-}
-
-function cmdBlock(label, code) {
-  const id = 'cb-' + Math.abs(hashStr(label)).toString(36);
-  return `<div class="dlm-cmd-label">${label}
-            <button class="dlm-copy" onclick="copyCodeBlock('${id}', this)">Copy</button></div>
-          <div class="dlm-code" id="${id}">${code}</div>`;
-}
 function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; }
-
-function renderSelPane() {
-  const pane = document.getElementById('dlp-sel');
-  if (!selectedRegion) {
-    pane.innerHTML = `<div class="dlm-empty">No selection yet. Hold <b>Shift</b> and drag across the
-      heatmap to box a clade or block, then reopen this panel.<br><br>
-      To grab a single pair, just <b>click</b> a cell — direct download links appear instantly.</div>`;
-    return;
-  }
-  const files = selectionFiles();
-  const n = files.length;
-  _selUrls = files.map(f => S3_HTTPS + f).join('\n');
-  _selS5   = files.map(f => `cp ${S3_URI}${f} cmaes/`).join('\n');
-
-  const wget = `<span class="c"># after saving urls.txt from the button below:</span>\n`
-    + `mkdir -p cmaes && wget -nc -P cmaes/ -i urls.txt`;
-  const curlp = `<span class="c"># parallel, 8 at a time, skips files that 404:</span>\n`
-    + `xargs -P 8 -n 1 curl -sfL --create-dirs -O --output-dir cmaes/ < urls.txt`;
-  const s5 = `<span class="c"># fastest — save cmaes.s5cmd.txt below, then:</span>\n`
-    + `s5cmd --no-sign-request run cmaes.s5cmd.txt`;
-
-  pane.innerHTML =
-    `<div class="dlm-line">Selected block resolves to <span class="dlm-count">${n.toLocaleString()}</span>
-       directional PAF file${n === 1 ? '' : 's'}
-       (${prettyName(selectedRegion.r1)}… × ${prettyName(selectedRegion.c1)}…).</div>`
-    + `<div class="dlm-note">GenomeArk is public — no AWS login needed. Upload is still in progress,
-       so a few pairs may not exist yet; every command below skips missing files and can be
-       re-run later to pick up new ones.</div>`
-    + cmdBlock('wget', wget)
-    + cmdBlock('curl (parallel)', curlp)
-    + cmdBlock('s5cmd (parallel)', s5)
-    + `<div class="dlm-btn-row">
-         <button class="dlm-dl" onclick='downloadText("urls.txt", _selUrls)'>
-           <span class="dl-ico">&#8595;</span>urls.txt &middot; ${n.toLocaleString()} URLs</button>
-         <button class="dlm-dl" onclick='downloadText("cmaes.s5cmd.txt", _selS5)'>
-           <span class="dl-ico">&#8595;</span>s5cmd manifest</button>
-       </div>`;
-}
-
-function renderFullPane() {
-  const pane = document.getElementById('dlp-full');
-  const sync = `<span class="c"># resumable &amp; re-runnable — best while upload is in progress.</span>\n`
-    + `<span class="c"># re-run any time to fetch newly added pairs.</span>\n`
-    + `aws s3 sync --no-sign-request \\\n  ${S3_URI} cmaes/`;
-  const s5 = `<span class="c"># parallel; much faster for hundreds of thousands of files.</span>\n`
-    + `s5cmd --no-sign-request cp '${S3_URI}*' cmaes/`;
-  const cp = `<span class="c"># one-shot recursive copy.</span>\n`
-    + `aws s3 cp --no-sign-request --recursive \\\n  ${S3_URI} cmaes/`;
-  pane.innerHTML =
-    `<div class="dlm-line">The complete all-vs-all set is
-       <span class="dlm-count">${TOTAL_FILES.toLocaleString()}</span> directional PAFs
-       (581 genomes, both directions) — on the order of <b>~1.5 TB</b>. Make sure you have room.</div>`
-    + `<div class="dlm-note">Upload is ongoing. Use <b>aws s3 sync</b> and re-run it periodically:
-       it only fetches files you don't already have, so it naturally completes as more pairs land.</div>`
-    + cmdBlock('aws s3 sync  (recommended)', sync)
-    + cmdBlock('s5cmd (fastest)', s5)
-    + cmdBlock('aws s3 cp', cp);
-}
 
 // ── Clipboard / blob helpers ──
 function copyText(text, btn) {
   navigator.clipboard.writeText(text).then(() => flashBtn(btn, 'Copied')).catch(() => {});
-}
-function copyCodeBlock(id, btn) {
-  copyText(document.getElementById(id).textContent, btn);
 }
 function flashBtn(btn, msg) {
   if (!btn) return;
@@ -1821,5 +1857,6 @@ function downloadText(filename, text) {
 
 init();
 </script>
+<script src="downloads.js"></script>
 </body>
 </html>
