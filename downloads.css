@@ -849,3 +849,47 @@
   .bulk-scope { overflow-x: auto; }
   .bulk-scope button { flex: 0 0 auto; }
 }
+
+/* Readability pass: the portal is intended to be used at normal browser zoom. */
+.data-portal { font-size: 14px; }
+.data-portal .portal-kicker,
+.data-portal .section-kicker { font-size: 10px; }
+.data-portal .dlm-title { font-size: 23px; }
+.data-portal .dlm-sub { font-size: 10px; }
+.data-portal .portal-tab b { font-size: 14px; }
+.data-portal .portal-tab small { font-size: 10px; }
+.data-portal .pane-intro h2 { font-size: 25px; }
+.data-portal .pane-intro p { font-size: 14px; }
+.data-portal .picker-label { font-size: 10px; }
+.data-portal .genome-picker input { font-size: 14px; }
+.data-portal .genome-picker small { font-size: 9px; }
+.data-portal .pair-result-head span,
+.data-portal .pair-result-head .pair-online,
+.data-portal .pair-file-role { font-size: 9px; }
+.data-portal .pair-file h3 { font-size: 14px; }
+.data-portal .pair-file code { font-size: 9px; }
+.data-portal .pair-file-actions a,
+.data-portal .pair-file-actions button { font-size: 10px; }
+.data-portal .selection-shortcut p b { font-size: 12px; }
+.data-portal .selection-shortcut p small { font-size: 10px; }
+.data-portal .selection-shortcut button { font-size: 10px; }
+.data-portal .catalog-count strong { font-size: 28px; }
+.data-portal .catalog-count span { font-size: 9px; }
+.data-portal .resource-search input { font-size: 13px; }
+.data-portal .resource-filters button { font-size: 10px; }
+.data-portal .resource-table-head { font-size: 9px; }
+.data-portal .resource-organism b { font-size: 12px; }
+.data-portal .resource-organism small { font-size: 9px; }
+.data-portal .resource-accession code { font-size: 10px; }
+.data-portal .resource-accession small { font-size: 8px; }
+.data-portal .resource-clade { font-size: 9px; }
+.data-portal .resource-asset { font-size: 9px; }
+.data-portal .resource-asset b { font-size: 10px; }
+.data-portal .resource-footer { font-size: 9px; }
+.data-portal .bulk-scope button { font-size: 11px; }
+.data-portal .bulk-summary { font-size: 13px; }
+.data-portal .bulk-notice { font-size: 11px; }
+.data-portal .bulk-command-head { font-size: 9px; }
+.data-portal .bulk-command pre { font-size: 10px; }
+.data-portal .future-card h3 { font-size: 15px; }
+.data-portal .future-card p { font-size: 11px; }
