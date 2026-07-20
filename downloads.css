@@ -893,3 +893,12 @@
 .data-portal .bulk-command pre { font-size: 10px; }
 .data-portal .future-card h3 { font-size: 15px; }
 .data-portal .future-card p { font-size: 11px; }
+
+.pair-controls { display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 190px; }
+.version-picker { display: grid; gap: 4px; color: var(--text-faint); font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+.version-picker select { min-height: 32px; padding: 0 9px; border: 1px solid var(--border); border-radius: 5px; color: var(--text); background: var(--surface); font: inherit; letter-spacing: 0; text-transform: none; }
+.pair-file-actions .artifact-pending { color: var(--text-faint); border-color: var(--border); background: var(--surface-2); cursor: not-allowed; }
+@media (max-width: 700px) {
+  .pair-controls { width: 100%; }
+  .version-picker select { width: 100%; }
+}

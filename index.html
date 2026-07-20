@@ -743,11 +743,14 @@ canvas { display: block; cursor: crosshair; }
           <div>
             <span class="section-kicker">DIRECT PAIR LOOKUP</span>
             <h2>Choose two genomes</h2>
-            <p>No need to locate a cell in the 581 × 581 heatmap. Enter species names or GCA/GCF accessions to generate both directional PAF download links.</p>
+            <p>No need to locate a cell in the 581 × 581 heatmap. Enter species names or GCA/GCF accessions to generate PAF, coverage, and identity links for both directions.</p>
           </div>
-          <button class="use-heatmap-pair" id="use-pinned-pair" onclick="usePinnedPair()" disabled>
-            Use selected heatmap pair
-          </button>
+          <div class="pair-controls">
+            <label class="version-picker" for="paf-version-select">Alignment version
+              <select id="paf-version-select" onchange="setPafVersion(this.value)"></select>
+            </label>
+            <button class="use-heatmap-pair" id="use-pinned-pair" onclick="usePinnedPair()" disabled>Use selected heatmap pair</button>
+          </div>
         </div>
 
         <div class="pair-builder">

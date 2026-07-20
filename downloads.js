@@ -11,6 +11,13 @@ let RESOURCE_PAGE = 1;
 let RESOURCE_RESULTS = [];
 let BULK_SCOPE = "selection";
 let PORTAL_TOAST_TIMER = null;
+const PAF_VERSIONS = {
+  raw: { label: "Raw", prefix: "raw" },
+  filter: { label: "Filtered", prefix: "filter" },
+  cmaes: { label: "CMA-ES", prefix: "cmaes" },
+  cmaes_sc: { label: "CMA-ES SC", prefix: "cmaes_sc" },
+};
+let ACTIVE_PAF_VERSION = "cmaes";
 
 const RESOURCE_PAGE_SIZE = 8;
 
@@ -143,17 +150,44 @@ function pairFileCard(queryIdx, targetIdx, role) {
       <code>No PAF filename could be generated.</code>
     </article>`;
   }
-  const url = S3_HTTPS + filename;
-  const uri = S3_URI + filename;
+  const version = PAF_VERSIONS[ACTIVE_PAF_VERSION];
+  const baseHttps = `https://genomeark.s3.amazonaws.com/working/staging/all_vs_all_alignments/FastGA/${version.prefix}/`;
+  const baseUri = `s3://genomeark/working/staging/all_vs_all_alignments/FastGA/${version.prefix}/`;
+  const stem = filename.replace(/\.paf\.gz$/, "");
+  const artifacts = [
+    { suffix: ".paf.gz", label: "PAF", ready: ACTIVE_PAF_VERSION === "cmaes" },
+    { suffix: ".cov", label: "COV", ready: false },
+    { suffix: ".id", label: "ID", ready: false },
+  ];
+  const links = artifacts.map((artifact) => {
+    const file = `${stem}${artifact.suffix}`;
+    const href = `${baseHttps}${file}`;
+    return artifact.ready
+      ? `<a href="${portalEscape(href)}" download="${portalEscape(file)}">Download .${artifact.label.toLowerCase()}</a>`
+      : `<button class="artifact-pending" title="S3 path reserved; awaiting upload">${artifact.label} pending S3</button>`;
+  }).join("");
   return `<article class="pair-file">
     <span class="pair-file-role">${role}</span>
     <h3><i>${portalEscape(prettyName(queryIdx))}</i> &rarr; <i>${portalEscape(prettyName(targetIdx))}</i></h3>
     <code>${portalEscape(filename)}</code>
-    <div class="pair-file-actions">
-      <a href="${portalEscape(url)}" download="${portalEscape(filename)}">Download .paf.gz</a>
-      <button onclick="portalCopyText('${portalEscape(uri)}', this)">Copy S3 URI</button>
+    <div class="pair-file-actions">${links}
+      <button onclick="portalCopyText('${portalEscape(baseUri + filename)}', this)">Copy S3 URI</button>
     </div>
   </article>`;
+}
+
+function setPafVersion(version) {
+  if (!PAF_VERSIONS[version]) return;
+  ACTIVE_PAF_VERSION = version;
+  renderPairResult();
+}
+
+function populatePafVersions() {
+  const select = document.getElementById("paf-version-select");
+  if (!select) return;
+  select.innerHTML = Object.entries(PAF_VERSIONS)
+    .map(([value, item]) => `<option value="${value}"${value === ACTIVE_PAF_VERSION ? " selected" : ""}>${item.label}</option>`)
+    .join("");
 }
 
 function renderPairResult() {
@@ -171,7 +205,7 @@ function renderPairResult() {
   }
   result.className = "pair-result";
   result.innerHTML = `<div class="pair-result-head">
-      <span>2 DIRECTIONAL ALIGNMENT FILES</span>
+      <span>2 DIRECTIONS · PAF + COV + ID</span>
       <span class="pair-online">Public GenomeArk bucket</span>
     </div>
     <div class="pair-files">
@@ -515,6 +549,7 @@ function onHeatmapDataReady() {
 }
 
 function initDownloadPortal() {
+  populatePafVersions();
   ["a", "b"].forEach((which) => {
     const input = document.getElementById(`pair-${which}-input`);
     input.addEventListener("change", () => handlePickerInput(which));

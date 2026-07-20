@@ -27,9 +27,11 @@ directional files).
 
 The **Data portal** provides three workflows:
 
-* **Pairwise PAF** — search for two species or GCA/GCF accessions directly. The
-  two directional files (A→B and B→A) are shown side by side. Clicking a heatmap
-  cell still pre-fills the same pair.
+* **Pairwise alignments** — search for two species or GCA/GCF accessions directly,
+  then choose `raw`, `filter`, `cmaes`, or `cmaes_sc`. Each direction exposes the
+  matching `.paf.gz`, `.cov`, and `.id` artifact slots. The CMA-ES PAF links are
+  enabled against GenomeArk; the other versions and COV/ID files remain visibly
+  pending until their S3 locations are uploaded/configured.
 * **Genome files** — search the assembly catalogue for GFF annotations and
   reference FASTA files. Their accession mappings are present; download buttons
   remain in an explicit “S3 pending” state until the public base URLs are added.
