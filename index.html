@@ -193,6 +193,35 @@ body {
 #reset-btn:hover { background: var(--surface-2); color: var(--text); border-color: var(--text-faint); }
 #reset-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* Dataset selector — which alignment version's matrices the heatmap shows */
+#dataset-ctrl { display: flex; align-items: center; gap: 8px; }
+#dataset-ctrl .ds-label {
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+#dataset-select {
+  font-family: var(--sans);
+  font-weight: 500;
+  font-size: 12.5px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  padding: 6px 26px 6px 9px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%234a5a70' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+}
+#dataset-select:hover { border-color: var(--text-faint); }
+#dataset-select:focus { outline: none; border-color: var(--accent); }
+
 /* ───────────────────────── Canvas (the plate) ───────────────────────── */
 #canvas-wrap {
   position: relative;
@@ -664,6 +693,11 @@ canvas { display: block; cursor: crosshair; }
   </div>
 
   <div class="controls">
+    <label id="dataset-ctrl" title="Alignment dataset shown in the heatmap">
+      <span class="ds-label">Dataset</span>
+      <select id="dataset-select" onchange="switchDataset(this.value)" aria-label="Heatmap dataset"></select>
+    </label>
+    <span class="ctrl-rule"></span>
     <span id="zoom-label">1.0&times;</span>
     <span class="ctrl-rule"></span>
     <button id="dl-open-btn" onclick="openDownload()"><span class="dl-ico">&#8595;</span>Data portal</button>
@@ -870,6 +904,12 @@ canvas { display: block; cursor: crosshair; }
 let DATA = null;            // the full loaded JSON
 let currentPageIdx = 0;     // 0 = similarity, 1 = coverage
 let PAGE = null;            // shorthand for DATA.pages[currentPageIdx]
+
+// ── Dataset (alignment version) shown in the heatmap ──
+let currentDatasetIdx = 0;
+let currentDatasetKey = 'cmaes';
+// Friendly labels, kept in step with downloads.js PAF_VERSIONS.
+const DATASET_LABELS = { raw: 'Raw', filter: 'Filtered', cmaes: 'CMA-ES', cmaes_sc: 'CMA-ES SC' };
 
 // ── Layout (triangle / diamond) ──
 // The pairwise matrix is rotated 45° so the main diagonal becomes the long
@@ -1442,6 +1482,38 @@ function switchPage(idx) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// Dataset switching — swap which alignment version's matrices are shown.
+// Tree / clade strip / labels / zoom / pan / selection are SHARED; the two
+// pages (similarity/coverage) re-render from the new dataset's matrices, and
+// all download links (instant pair card, bulk commands, data portal) follow.
+// ═══════════════════════════════════════════════════════════
+function switchDataset(key) {
+  if (!DATA || !DATA.datasets) return;
+  const idx = DATA.datasets.findIndex((d) => d.key === key);
+  if (idx < 0 || idx === currentDatasetIdx) return;
+  currentDatasetIdx = idx;
+  const ds = DATA.datasets[idx];
+  currentDatasetKey = ds.key;
+
+  DATA.pages = ds.pages;
+  PAGE = DATA.pages[currentPageIdx];
+  overviewImages = [];            // both pages must re-render for the new data
+  prerenderOverview(currentPageIdx);
+
+  // Point every download surface at this dataset's bucket path.
+  setDownloadDataset(ds.key);
+  if (pinnedPair) renderPairCard();
+  if (typeof setPafVersion === 'function') setPafVersion(ds.key);
+
+  const sel = document.getElementById('dataset-select');
+  if (sel && sel.value !== ds.key) sel.value = ds.key;
+
+  drawColorbar();
+  hideTooltip();
+  requestDraw();
+}
+
+// ═══════════════════════════════════════════════════════════
 // Events
 // ═══════════════════════════════════════════════════════════
 let isPanning = false, panStart = null;
@@ -1722,6 +1794,24 @@ async function init() {
     showError('heatmap_data.json is missing required fields (pages / n).');
     return;
   }
+
+  // ── Dataset selector (only when the JSON ships multiple datasets) ──
+  const dsSel = document.getElementById('dataset-select');
+  if (DATA.datasets && DATA.datasets.length) {
+    let di = DATA.datasets.findIndex((d) => d.key === DATA.defaultDataset);
+    if (di < 0) di = 0;
+    currentDatasetIdx = di;
+    currentDatasetKey = DATA.datasets[di].key;
+    dsSel.innerHTML = DATA.datasets
+      .map((d) => `<option value="${d.key}">${DATASET_LABELS[d.key] || d.label || d.key}</option>`)
+      .join('');
+    dsSel.value = currentDatasetKey;
+    DATA.pages = DATA.datasets[di].pages;   // show the default dataset
+    setDownloadDataset(currentDatasetKey);
+  } else {
+    document.getElementById('dataset-ctrl').style.display = 'none';
+  }
+
   if (typeof onHeatmapDataReady === 'function') onHeatmapDataReady();
 
   document.getElementById('load-text').textContent = 'Rendering heatmap…';
@@ -1755,10 +1845,24 @@ async function init() {
 // files nor reliably probe 404s. We therefore (a) hand out direct download
 // links — plain navigations need no CORS — and (b) generate a URL manifest plus
 // copy-paste aws/s5cmd/wget commands for anything bulk.
-const S3_PREFIX = 'working/staging/all_vs_all_alignments/FastGA/cmaes/';
-const S3_HTTPS  = 'https://genomeark.s3.amazonaws.com/' + S3_PREFIX;
-const S3_URI    = 's3://genomeark/' + S3_PREFIX;
+// These follow the dataset chosen in the header (see setDownloadDataset).
+// They are plain `let` bindings — downloads.js reads S3_HTTPS / S3_URI by name
+// at render time, so updating them here re-points the bulk commands too.
+let S3_PREFIX = 'working/staging/all_vs_all_alignments/FastGA/cmaes/';
+let S3_HTTPS  = 'https://genomeark.s3.amazonaws.com/' + S3_PREFIX;
+let S3_URI    = 's3://genomeark/' + S3_PREFIX;
 const TOTAL_FILES = 336980;
+
+// Which datasets are actually published to the public S3 bucket. raw / filter
+// are local intermediates, so their per-pair links stay disabled.
+const S3_DATASETS = new Set(['cmaes', 'cmaes_sc']);
+
+// Re-point all instant/bulk download surfaces at `key`'s bucket path.
+function setDownloadDataset(key) {
+  S3_PREFIX = 'working/staging/all_vs_all_alignments/FastGA/' + key + '/';
+  S3_HTTPS  = 'https://genomeark.s3.amazonaws.com/' + S3_PREFIX;
+  S3_URI    = 's3://genomeark/' + S3_PREFIX;
+}
 
 let pinnedPair = null;   // {row, col}  (row < col)
 
@@ -1802,12 +1906,14 @@ function renderPairCard() {
   const f_ba = pafName(col, row);   // B as query, A as target
   const links = document.getElementById('pc-links');
   const aName = prettyName(row), bName = prettyName(col);
-  const pill = (f, dir) => f
+  const onS3 = S3_DATASETS.has(currentDatasetKey);
+  const dsLabel = DATASET_LABELS[currentDatasetKey] || currentDatasetKey;
+  const pill = (f, dir) => (f && onS3)
     ? `<a class="dl-pill" href="${S3_HTTPS}${f}" download="${f}">
          <span class="dl-ico">&#8595;</span><span class="dl-dir">${dir}</span>
          <span class="dl-fn">${f.replace('.paf.gz','')}</span></a>`
     : `<span class="dl-pill" aria-disabled="true"><span class="dl-ico">&#8595;</span>
-         <span class="dl-dir">${dir}</span><span class="dl-fn">accession n/a</span></span>`;
+         <span class="dl-dir">${dir}</span><span class="dl-fn">${f ? (dsLabel + ' — not on S3') : 'accession n/a'}</span></span>`;
   links.innerHTML = pill(f_ab, `${aName} → ${bName}`) + pill(f_ba, `${bName} → ${aName}`);
   card.style.display = 'flex';
 }

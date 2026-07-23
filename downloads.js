@@ -155,7 +155,7 @@ function pairFileCard(queryIdx, targetIdx, role) {
   const baseUri = `s3://genomeark/working/staging/all_vs_all_alignments/FastGA/${version.prefix}/`;
   const stem = filename.replace(/\.paf\.gz$/, "");
   const artifacts = [
-    { suffix: ".paf.gz", label: "PAF", ready: ACTIVE_PAF_VERSION === "cmaes" },
+    { suffix: ".paf.gz", label: "PAF", ready: ACTIVE_PAF_VERSION === "cmaes" || ACTIVE_PAF_VERSION === "cmaes_sc" },
     { suffix: ".cov", label: "COV", ready: false },
     { suffix: ".id", label: "ID", ready: false },
   ];

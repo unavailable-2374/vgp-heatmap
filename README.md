@@ -17,6 +17,13 @@ Two heatmap pages:
   (directional; each diamond splits into two triangles, one per direction,
   when zoomed in).
 
+A **Dataset** selector in the header switches which alignment version the
+heatmap displays — `raw`, `filter`, `cmaes`, or `cmaes_sc` — so the same
+similarity/coverage plates can be compared across pipelines. The selection also
+re-points the per-cell and portal download links at that version's bucket
+(`cmaes` and `cmaes_sc` are live on GenomeArk; `raw`/`filter` are local-only
+intermediates and their per-pair links stay disabled).
+
 ## Downloading data
 
 The viewer links straight to the public **GenomeArk** bucket
@@ -29,9 +36,9 @@ The **Data portal** provides three workflows:
 
 * **Pairwise alignments** — search for two species or GCA/GCF accessions directly,
   then choose `raw`, `filter`, `cmaes`, or `cmaes_sc`. Each direction exposes the
-  matching `.paf.gz`, `.cov`, and `.id` artifact slots. The CMA-ES PAF links are
-  enabled against GenomeArk; the other versions and COV/ID files remain visibly
-  pending until their S3 locations are uploaded/configured.
+  matching `.paf.gz`, `.cov`, and `.id` artifact slots. The `cmaes` and `cmaes_sc`
+  PAF links are enabled against GenomeArk; `raw`/`filter` and the COV/ID files
+  remain visibly pending until their S3 locations are uploaded/configured.
 * **Genome files** — search the assembly catalogue for GFF annotations and
   reference FASTA files. Their accession mappings are present; download buttons
   remain in an explicit “S3 pending” state until the public base URLs are added.
