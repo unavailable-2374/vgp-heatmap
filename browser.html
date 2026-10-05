@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VGP · Comparative Genome Browser</title>
+  <link rel="stylesheet" href="browser.css"><script src="browser.js" defer></script>
+</head>
+<body>
+  <header><a class="brand" href="browser.html"><span class="brand-icon">V</span><span><b>VGP Genome Browser</b><small>Comparative genomics · all-vs-all alignments</small></span></a>
+    <nav><span class="nav-active">Region browser</span><a href="index.html">Global heatmap ↗</a></nav>
+    <span id="backend-status" class="pill">Connecting</span>
+  </header>
+  <main>
+    <aside class="catalog-panel">
+      <div class="eyebrow">01 / SELECT ASSEMBLIES</div><h1>Explore across genomes.</h1>
+      <p class="muted">Choose assemblies, then browse their alignment and gene structure at any locus.</p>
+      <label class="search-label" for="sample-search">Find an assembly</label>
+      <input id="sample-search" type="search" placeholder="Species, accession or common name">
+      <select id="clade-filter" aria-label="Filter by clade"><option value="">All clades</option></select>
+      <div class="catalog-count" id="catalog-count"></div><div id="sample-list" aria-label="Assemblies"></div>
+      <div class="aside-footer"><span class="dot positive"></span> Forward alignment <span class="dot negative"></span> Reverse alignment</div>
+    </aside>
+    <section class="workspace">
+      <section class="connection-panel" aria-label="Query service connection">
+        <div><b id="connection-title">Query service</b><p id="connection-note">The genome browser connects to an indexed alignment API.</p></div>
+        <div class="connection-controls"><input id="api-address" type="url" aria-label="Query API address" placeholder="https://your-query-server"><button id="connect-api">Connect API</button><button id="open-preview" hidden>Open real-data preview</button></div>
+      </section>
+      <section class="query-panel">
+        <div class="panel-heading"><div><div class="eyebrow">02 / DEFINE YOUR VIEW</div><h2>Alignment workspace</h2></div>
+          <div class="mode-switch"><button id="mode-free" class="active">Independent regions</button><button id="mode-anchor">Follow an anchor</button></div></div>
+        <p id="mode-help" class="muted">Each row has its own coordinates. Compare any selected intervals using direct pairwise alignments.</p>
+        <div id="region-list"></div><div id="target-list" hidden></div>
+        <div class="query-controls">
+          <label>Alignment dataset<select id="dataset"><option>cmaes</option><option>cmaes_sc</option><option>filter</option><option>raw</option></select></label>
+          <label>Minimum identity<input id="min-identity" type="number" min="0" max="100" value="0" step="1"><span class="input-note">%</span></label>
+          <label>Minimum block<input id="min-length" type="number" min="0" value="0"><span class="input-note">bp</span></label>
+          <label>PAF directions<select id="direction"><option value="preferred">Prefer target = anchor</option><option value="both">Both source directions</option></select></label>
+          <button id="run-query" class="primary">Browse alignments →</button>
+        </div>
+        <p class="coordinate-note">Coordinates throughout: <b>0-based, end-exclusive</b>. Source assembly versions are preserved. Maximum 16 input windows.</p>
+      </section>
+      <div id="status" role="status" aria-live="polite">Select at least two assemblies to begin. All displayed results come from the local dataset.</div>
+      <section class="visual-panel">
+        <div class="view-toolbar"><div class="view-tabs"><button id="view-tracks" class="active">Synteny tracks</button><button id="view-dotplot">Pairwise dotplot</button></div>
+          <div class="view-actions"><label><input id="show-genes" type="checkbox" checked> Gene models · collapsed isoforms</label><button id="export-query" disabled>Export results</button><button id="share-query" disabled>Copy view link</button></div></div>
+        <div class="visual-heading"><div><h2 id="result-title">Your comparative view</h2><p id="result-subtitle" class="muted">Zoom into alignment blocks, inspect genes, and follow conserved regions.</p></div><div id="result-stats"></div></div>
+        <div id="pair-picker" hidden></div>
+        <div id="visualization"><div class="empty-view"><div class="empty-symbol">↔</div><h3>Start with a region</h3><p>Add assemblies from the left and enter a sequence interval.<br>Use “Follow an anchor” to discover matching loci automatically.</p></div></div>
+        <div class="visual-footer"><span>Blue / forward · coral / reverse · green / genes</span><span>Click a feature to inspect its coordinates and source</span></div>
+      </section>
+      <section id="details" class="details-panel"><div class="eyebrow">03 / INSPECT EVIDENCE</div><h3>Feature details</h3><p class="muted">Select an alignment ribbon, dotplot segment or gene.</p></section>
+    </section>
+  </main>
+</body>
+</html>

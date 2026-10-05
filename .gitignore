@@ -1,0 +1,6 @@
+.venv-browser/
+.browser-cache/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+tests/__pycache__/

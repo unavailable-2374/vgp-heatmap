@@ -693,6 +693,7 @@ canvas { display: block; cursor: crosshair; }
   </div>
 
   <div class="controls">
+    <a href="browser.html" style="font-size:12px;font-weight:600;color:#2b6cb0;text-decoration:none">Region browser &#8599;</a>
     <label id="dataset-ctrl" title="Alignment dataset shown in the heatmap">
       <span class="ds-label">Dataset</span>
       <select id="dataset-select" onchange="switchDataset(this.value)" aria-label="Heatmap dataset"></select>
@@ -734,6 +735,7 @@ canvas { display: block; cursor: crosshair; }
     <div class="pc-sp"><span class="pc-role">B</span><span class="pc-dot" id="pc-dot-b"></span><span class="pc-name" id="pc-name-b"></span></div>
     <div class="pc-links" id="pc-links"></div>
     <div class="pc-foot">
+      <a id="pc-browser-link" href="browser.html" style="font-size:12px;font-weight:600;color:#2b6cb0">Browse these genomes &#8599;</a>
       <button onclick="copyPairUris(event)">Copy s3:// URIs</button>
       <button onclick="openDownload('pair')">Open data portal &rsaquo;</button>
     </div>
@@ -1901,6 +1903,12 @@ function renderPairCard() {
   document.getElementById('pc-name-b').textContent = prettyName(col);
   document.getElementById('pc-dot-a').style.background = cladeColorForIndex(row);
   document.getElementById('pc-dot-b').style.background = cladeColorForIndex(col);
+  const assemblies = [row, col].map(i => {
+    const name = DATA.leafOrder[i];
+    return (DATA.speciesToAcc[name] || DATA.speciesToAcc[name.replace(/_+$/, '')] || [])[0];
+  }).filter(Boolean);
+  document.getElementById('pc-browser-link').href = 'browser.html#' +
+    new URLSearchParams({samples: assemblies.join(','), dataset: currentDatasetKey}).toString();
 
   const f_ab = pafName(row, col);   // A as query, B as target
   const f_ba = pafName(col, row);   // B as query, A as target
